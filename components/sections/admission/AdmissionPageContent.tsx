@@ -19,24 +19,18 @@ import {
   PhoneCall,
   Rocket,
 } from "lucide-react";
-import clsx from "clsx";
 import { useSite } from "@/components/provider/SiteProvider";
 import { trackGAEvent } from "@/lib/analytics";
 import { appendAttributionToFormData } from "@/lib/attribution";
+import { PLAY_STORE_URL } from "@/lib/app-links";
+import { CHAMPION_BATCH } from "@/lib/champion-batch";
+import { formatINR } from "@/lib/coursePricing";
 import type { Batch } from "@/lib/data";
 
-/* ← Same Web3Forms access key as the contact page */
+/* Web3Forms access key for admission guidance requests. */
 const WEB3FORMS_ACCESS_KEY = "e4e66ca4-46d3-42dc-97cb-af9fe61a4cd1";
 
-/* ← Add your real store links */
-const PLAY_STORE_URL =
-  "https://play.google.com/store/apps/details?id=com.zdrkue.ctqxio&pcampaignid=web_share";
 const APP_STORE_URL = process.env.NEXT_PUBLIC_APP_STORE_URL;
-
-const FEES = {
-  new: { label: "New Student", amount: "₹1,800" },
-  old: { label: "Old Student", amount: "₹1,500" },
-} as const;
 
 const APP_STEPS = [
   { icon: Download, text: "Download the medhaup app" },
@@ -45,7 +39,7 @@ const APP_STEPS = [
 ];
 
 const FORM_STEPS = [
-  { icon: Send, text: "Submit this form" },
+  { icon: Send, text: "Send your admission guidance request" },
   { icon: PhoneCall, text: "We call / WhatsApp you within 24 hours" },
   { icon: Rocket, text: "Complete admission with our guidance" },
 ];
@@ -53,11 +47,11 @@ const FORM_STEPS = [
 const FAQS = [
   {
     q: "When do I pay?",
-    a: "If you use the app, you pay securely inside the app when you enrol. If you request a callback, you pay only after we've talked and you're ready — nothing is charged through this website.",
+    a: "If you use the app, you pay securely inside the app when you enrol. If you request admission guidance, we'll explain the process before you pay. Submitting this form does not make a payment or confirm admission.",
   },
   {
-    q: "How does EMI work?",
-    a: "EMI options for the course fee are available inside the app at checkout. If you request a callback, we'll explain the instalment options before you pay anything.",
+    q: "Can I join with an initial payment?",
+    a: `Yes. The Diwali offer fee for ${CHAMPION_BATCH.name} is ${formatINR(CHAMPION_BATCH.offerPrice)}, reduced from ${formatINR(CHAMPION_BATCH.regularPrice)}. Join with ${formatINR(CHAMPION_BATCH.joiningAmount)} and pay the remaining ${formatINR(CHAMPION_BATCH.remainingAmount)} according to the applicable payment schedule. Ask our team to explain the schedule before paying.`,
   },
   {
     q: "What if the batch fills up?",
@@ -65,7 +59,7 @@ const FAQS = [
   },
   {
     q: "Can I talk to someone before deciding?",
-    a: "Yes — that's exactly what the callback option is for. You'll speak directly with Arushi, not a sales team.",
+    a: "Yes. Request admission guidance using the form above. We'll help you understand the course, fees and app enrollment process in Bengali or English before you decide.",
   },
 ];
 
@@ -78,13 +72,12 @@ export default function AdmissionPageContent({
 }) {
   const SITE = useSite();
   const [status, setStatus] = useState<Status>("idle");
-  const [studentType, setStudentType] = useState<"new" | "old">("new");
 
   /* Fallback keeps the page working even with no published batch —
      the admin panel controls this via the Batches collection. */
   const CURRENT_BATCH: Batch = batch ?? {
     id: "",
-    name: "the upcoming batch",
+    name: CHAMPION_BATCH.name,
     startDate: "To be announced",
     mode: "Online",
     timing: "To be announced",
@@ -93,7 +86,7 @@ export default function AdmissionPageContent({
   };
 
   const ADMISSION_WHATSAPP_URL = `https://wa.me/${SITE.whatsapp.number}?text=${encodeURIComponent(
-    `Hi, I want to take admission in ${CURRENT_BATCH.name} of the ANM/GNM course.`,
+    `Hi, I need admission guidance for ${CURRENT_BATCH.name} of the ANM/GNM course.`,
   )}`;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -103,8 +96,9 @@ export default function AdmissionPageContent({
     const form = e.currentTarget;
     const data = new FormData(form);
     data.append("access_key", WEB3FORMS_ACCESS_KEY);
-    data.append("from_name", "medhaup Admission Request");
+    data.append("from_name", "medhaup Admission Guidance");
     data.append("form_type", "admission");
+    data.append("request_type", "admission_guidance");
     data.append("batch", CURRENT_BATCH.name);
     appendAttributionToFormData(data);
 
@@ -116,9 +110,8 @@ export default function AdmissionPageContent({
       const json = await res.json();
       if (json.success) {
         trackGAEvent("generate_lead", {
-          lead_type: "admission_callback",
+          lead_type: "admission_guidance",
           batch_name: CURRENT_BATCH.name,
-          student_type: studentType,
         });
         setStatus("success");
         form.reset();
@@ -137,7 +130,7 @@ export default function AdmissionPageContent({
     {
       icon: IndianRupee,
       label: "Fee",
-      value: "₹1,800 new · ₹1,500 old · EMI",
+      value: `${formatINR(CHAMPION_BATCH.offerPrice)} total · Join with ${formatINR(CHAMPION_BATCH.joiningAmount)}`,
     },
   ];
 
@@ -239,9 +232,11 @@ export default function AdmissionPageContent({
                   Admit yourself in the app
                 </h2>
                 <p className="mt-2.5 text-sm leading-relaxed text-white/65">
-                  Download the medhaup app, choose your plan — new student, old
-                  student, or EMI — and pay securely inside the app. You&apos;re
-                  enrolled in minutes.
+                  Download the medhaup app and choose {CHAMPION_BATCH.name}.
+                  The Diwali offer fee is {formatINR(CHAMPION_BATCH.offerPrice)}.
+                  Join with {formatINR(CHAMPION_BATCH.joiningAmount)} and pay the
+                  remaining {formatINR(CHAMPION_BATCH.remainingAmount)} according
+                  to the applicable payment schedule.
                 </p>
 
                 <ol className="mt-6 space-y-3">
@@ -293,24 +288,59 @@ export default function AdmissionPageContent({
               </div>
             </motion.div>
 
-            {/* ---------- Path B: Callback form ---------- */}
+            {/* ---------- Path B: Admission guidance form ---------- */}
             <motion.div
+              id="admission-guidance"
+              role="region"
+              aria-labelledby="admission-guidance-heading"
+              tabIndex={-1}
               initial={{ opacity: 0, y: 28 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.55, delay: 0.1 }}
-              className="flex min-w-0 flex-col rounded-3xl border border-navy/10 bg-cream p-7 sm:p-9"
+              className="flex min-w-0 scroll-mt-28 flex-col rounded-3xl border border-navy/10 bg-cream p-7 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-navy sm:p-9"
             >
               <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-navy/8 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-navy">
-                Guided Admission
+                Need help enrolling?
               </span>
-              <h2 className="font-heading mt-5 text-2xl font-extrabold text-navy">
-                Or request a callback
+              <h2 id="admission-guidance-heading" className="font-heading mt-5 text-2xl font-extrabold text-navy">
+                Admission guidance
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-navy/60">
                 Have questions first? Fill this in and we&apos;ll personally
                 guide you through admission — in Bengali or English.
               </p>
+
+              <div className="mt-5 rounded-2xl border border-orange/25 bg-white p-4 sm:p-5">
+                <p className="text-xs font-bold uppercase tracking-wider text-navy/65">Diwali Special Offer</p>
+                <p className="font-heading mt-1 text-sm font-bold text-navy">{CHAMPION_BATCH.name}</p>
+                <p className="mt-3 text-sm text-navy/65">
+                  Regular price <del>{formatINR(CHAMPION_BATCH.regularPrice)}</del>
+                </p>
+                <p className="font-heading mt-1 text-3xl font-extrabold text-navy">
+                  {formatINR(CHAMPION_BATCH.offerPrice)} <span className="text-sm font-semibold">total</span>
+                </p>
+                <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-navy/10 pt-4 text-sm">
+                  <div>
+                    <dt className="text-navy/65">Joining amount</dt>
+                    <dd className="mt-1 font-bold text-navy">{formatINR(CHAMPION_BATCH.joiningAmount)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-navy/65">Remaining amount</dt>
+                    <dd className="mt-1 font-bold text-navy">{formatINR(CHAMPION_BATCH.remainingAmount)}</dd>
+                  </div>
+                </dl>
+                <p className="mt-3 text-xs leading-5 text-navy/65">
+                  Pay the remaining amount according to the applicable payment schedule.
+                  Course access lasts until the ANM/GNM 2027 entrance examination,
+                  subject to the platform&apos;s access policy.
+                </p>
+                <p className="mt-2 text-xs leading-5 text-navy/65">
+                  Fees, including the joining amount, are non-refundable except
+                  where required by applicable law. Review the course details,
+                  fee structure and terms before paying.
+                </p>
+              </div>
 
               {status === "success" ? (
                 <motion.div
@@ -320,11 +350,11 @@ export default function AdmissionPageContent({
                 >
                   <CheckCircle2 className="mx-auto h-9 w-9 text-green-600" />
                   <p className="font-heading mt-3 font-bold text-navy">
-                    Seat request received!
+                    Admission guidance request received!
                   </p>
                   <p className="mt-1 text-sm text-navy/65">
-                    We&apos;ll contact you on WhatsApp or call within 24 hours.
-                    Can&apos;t wait?
+                    We&apos;ll contact you on WhatsApp or call within 24 hours
+                    to help you complete admission. Can&apos;t wait?
                   </p>
 
                   <a
@@ -338,7 +368,7 @@ export default function AdmissionPageContent({
                   </a>
                 </motion.div>
               ) : (
-                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                <form onSubmit={handleSubmit} aria-labelledby="admission-guidance-heading" className="mt-6 space-y-4">
                   <input
                     type="checkbox"
                     name="botcheck"
@@ -383,51 +413,6 @@ export default function AdmissionPageContent({
                     />
                   </div>
 
-                  {/* Student type toggle */}
-                  <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-navy">
-                      I am a
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["new", "old"] as const).map((type) => (
-                        <label
-                          key={type}
-                          className={clsx(
-                            "flex cursor-pointer flex-col items-center rounded-xl border-2 p-3.5 text-center transition-all duration-200",
-                            studentType === type
-                              ? "border-orange bg-orange/5"
-                              : "border-navy/10 bg-white hover:border-navy/25",
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name="student_type"
-                            value={FEES[type].label}
-                            checked={studentType === type}
-                            onChange={() => setStudentType(type)}
-                            className="sr-only"
-                          />
-                          <span className="text-sm font-bold text-navy">
-                            {FEES[type].label}
-                          </span>
-                          <span
-                            className={clsx(
-                              "font-heading mt-1 text-lg font-extrabold",
-                              studentType === type
-                                ? "text-orange"
-                                : "text-navy/50",
-                            )}
-                          >
-                            {FEES[type].amount}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="mt-1.5 text-xs text-navy/50">
-                      Full 12-month fee · EMI options available
-                    </p>
-                  </div>
-
                   <div>
                     <label
                       htmlFor="adm-message"
@@ -442,7 +427,7 @@ export default function AdmissionPageContent({
                       id="adm-message"
                       name="message"
                       rows={3}
-                      placeholder="EMI, batch timing, eligibility — anything"
+                      placeholder="Tell us where you need help — app enrollment, fees, payment schedule or eligibility"
                       className="w-full resize-none rounded-xl border border-navy/15 bg-white px-4 py-3 text-sm text-navy outline-none transition-colors placeholder:text-navy/35 focus:border-orange focus:ring-2 focus:ring-orange/20"
                     />
                   </div>
@@ -468,12 +453,17 @@ export default function AdmissionPageContent({
                     ) : (
                       <>
                         <Send className="h-[17px] w-[17px]" />
-                        Request Callback
+                        Get admission guidance
                       </>
                     )}
                   </button>
 
-                  {/* Callback steps */}
+                  <p className="text-xs leading-5 text-navy/60">
+                    This form requests guidance only. No payment is collected
+                    and your admission is not confirmed by submitting it.
+                  </p>
+
+                  {/* Admission guidance steps */}
                   <ol className="space-y-2 pt-2">
                     {FORM_STEPS.map((s, i) => (
                       <li

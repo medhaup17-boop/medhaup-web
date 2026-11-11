@@ -16,6 +16,8 @@ import {
 import { useSite } from "@/components/provider/SiteProvider";
 import { trackGAEvent } from "@/lib/analytics";
 import { appendAttributionToFormData } from "@/lib/attribution";
+import { CHAMPION_BATCH } from "@/lib/champion-batch";
+import { formatINR } from "@/lib/coursePricing";
 
 /* ← Get your free access key at https://web3forms.com and paste it here */
 const WEB3FORMS_ACCESS_KEY = "fafed16a-f163-4081-bd76-650255cc93fc";
@@ -31,7 +33,7 @@ const SUBJECTS = [
 const FAQS = [
   {
     q: "What is the course fee?",
-    a: "₹1,800 for the full 12-month course (₹1,500 for returning students). EMI is available.",
+    a: `${CHAMPION_BATCH.name} has a Diwali special fee of ${formatINR(CHAMPION_BATCH.offerPrice)} (regular price ${formatINR(CHAMPION_BATCH.regularPrice)}). Join with ${formatINR(CHAMPION_BATCH.joiningAmount)} and pay the remaining ${formatINR(CHAMPION_BATCH.remainingAmount)} according to the applicable payment schedule. Course access lasts until the ANM/GNM 2027 entrance examination, subject to the platform’s access policy.`,
   },
   {
     q: "Is the course fully online?",
@@ -43,7 +45,7 @@ const FAQS = [
   },
   {
     q: "How do I take admission?",
-    a: "Head to the admission page, fill in your details, and we'll guide you through the rest on WhatsApp.",
+    a: "Enroll in the CHAMPION BATCH through the medhaup app. If you need help, fill in the admission guidance form and we'll guide you through the process on WhatsApp or a call.",
   },
 ];
 
@@ -424,12 +426,12 @@ export default function ContactPageContent() {
             transition={{ delay: 0.3 }}
             className="mt-8 text-center text-sm text-navy/60"
           >
-            Ready to join?{" "}
+            Need help joining?{" "}
             <Link
-              href="/admission"
+              href={CHAMPION_BATCH.guidanceHref}
               className="font-semibold text-orange hover:underline"
             >
-              Take Admission →
+              Get admission guidance →
             </Link>
           </motion.p>
         </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import Hero from "@/components/sections/Hero";
+import ChampionBatch from "@/components/sections/ChampionBatch";
 import PreviousYearPapers from "@/components/sections/PreviousYearPapers";
 import OngoingBatch from "@/components/sections/OngoingBatch";
 import SubjectSyllabus from "@/components/sections/SubjectSyllabus";
@@ -481,6 +482,7 @@ export default async function Home() {
         {/* ------------------------------------------------------------------ */}
 
         <Hero downloads={downloads} />
+        <ChampionBatch />
         <PreviousYearPapers papers={papers} />
         {/* No published batch → section disappears (admissions closed) */}
         {batches.length > 0 && <OngoingBatch batches={batches} />}
