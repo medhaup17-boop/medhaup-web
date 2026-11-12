@@ -57,7 +57,7 @@ const sampleResource = {
   description: "Subject-wise checklist for the Prelims paper.",
   language: "English",
   fileUrl:
-    "https://example.supabase.co/storage/v1/object/public/files/norcet-resources/syllabus.pdf",
+    "https://assets.example.com/files/norcet-resources/syllabus.pdf",
   fileSize: "640 KB",
   isNew: true,
 };
@@ -251,15 +251,17 @@ test("admin panel exposes a NORCET resources collection that feeds the public fe
   assert.equal(pdf.fileSizeField, "file_size");
   const migration = readFileSync(
     new URL(
-      "../supabase/migrations/202609100001_create_norcet_resources.sql",
+      "../cloudflare/d1-worker/migrations/0001_fresh_content.sql",
       import.meta.url,
     ),
     "utf8",
   );
+  const table = migration.match(/CREATE TABLE norcet_resources \(([\s\S]*?)\n\);/)[1];
   for (const column of names) {
-    assert.match(migration, new RegExp(`\\b${column}\\b`), `migration has ${column}`);
+    assert.match(table, new RegExp(`\\b${column}\\b`), `NORCET table has ${column}`);
   }
-  assert.match(migration, /enable row level security/);
+  assert.match(table, /published INTEGER NOT NULL DEFAULT 0 CHECK \(published IN \(0,1\)\)/);
+  assert.match(migration, /CREATE INDEX norcet_resources_published_created_idx ON norcet_resources\(published, created_at DESC\)/);
 });
 
 test("exam pattern and resources sections render both stages and the resource enquiry empty state", () => {
@@ -289,6 +291,7 @@ test("exam pattern and resources sections render both stages and the resource en
   );
   assert.match(listed, /NORCET Stage I syllabus checklist/);
   assert.match(listed, /download=""/);
-  assert.match(listed, /download=/);
+  assert.match(listed, /href="https:\/\/assets\.example\.com\/files\/norcet-resources\/syllabus\.pdf"/);
+  assert.doesNotMatch(listed, /\?download=/);
   assert.doesNotMatch(listed, /and study support/);
 });

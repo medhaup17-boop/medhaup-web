@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import Image from "@/components/ui/ContentImage";
 import { motion } from "framer-motion";
 import { ArrowRight, ArrowUpRight, BookOpen, Clock, Newspaper } from "lucide-react";
 import type { BlogPost } from "@/lib/data";

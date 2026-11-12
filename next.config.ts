@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const assetUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+const assetPattern = assetUrl ? new URL(`${assetUrl.replace(/\/$/, "")}/**`) : null;
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -30,11 +33,7 @@ const nextConfig: NextConfig = {
         hostname: "ik.imagekit.io",
         pathname: "/**",
       },
-      {
-        protocol: "https",
-        hostname: "*.supabase.co",
-        pathname: "/storage/v1/object/public/**",
-      },
+      ...(assetPattern ? [assetPattern] : []),
       {
         protocol: "https",
         hostname: "i.pravatar.cc",

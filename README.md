@@ -23,7 +23,7 @@ project.
 | Course and admissions | Course information, current-batch availability, app-download links, callback requests, and WhatsApp-assisted admissions                                |
 | Learning resources    | Subject syllabi, full syllabus downloads, previous-year papers, current affairs, free resources, educational articles, and page-aware AI doubt support |
 | Student trust         | Gallery content and a dedicated wall of student-success photos                                                                                         |
-| Store                 | Supabase-managed products with WhatsApp checkout hand-off                                                                                              |
+| Store                 | CMS-managed products with WhatsApp checkout hand-off                                                                                              |
 | Content operations    | Authenticated admin CMS with draft/publish controls, file uploads, site settings, and collection management                                            |
 | Marketing             | GA4 funnel events, 90-day last-non-direct UTM attribution, lead-source capture, and an internal campaign-link builder                                  |
 | Search visibility     | Route metadata, canonical URLs, Open Graph images, structured data, dynamic sitemap generation, robots rules, and a web app manifest                   |
@@ -34,15 +34,15 @@ project.
 | ---------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | Web application  | Next.js 16 App Router, React 19, TypeScript | Server-rendered pages, client interactions, routing, metadata, and revalidation |
 | Design system    | Tailwind CSS 4, Framer Motion, Lucide React | Responsive presentation, motion, and interface icons                            |
-| Application data | Supabase Postgres                           | Published content, batches, products, site settings, and admin membership       |
-| Authentication   | Supabase Auth                               | Email/password sessions for the admin interface                                 |
-| File storage     | Supabase Storage                            | Public images and downloadable PDF resources                                    |
+| Application data | Cloudflare D1                           | Published content, batches, products, site settings, and admin membership       |
+| Authentication   | Clerk                               | Email/password sessions for the admin interface                                 |
+| File storage     | Cloudflare R2                            | Public images and downloadable PDF resources                                    |
 | Lead delivery    | Web3Forms                                   | Contact and admission form delivery                                             |
 | Measurement      | Google Analytics 4                          | Funnel events and campaign attribution                                          |
 
-Public content is loaded from Supabase on the server. Most content routes use a
-60-second revalidation window, while the success wall requests current data on
-every render. If a content query fails, the data layer logs the failure and
+Public content is loaded from D1 through a private Worker gateway. Published
+queries share a five-minute cache, invalidated after admin changes. Public pages
+retain their route revalidation settings; admin and draft reads are never cached. If a content query fails, the data layer logs the failure and
 returns an empty result; content-driven pages then show their configured
 "Coming Soon" state. Site contact settings fall back to safe defaults.
 
@@ -71,7 +71,7 @@ returns an empty result; content-driven pages then show their configured
 
 | Route                    | Purpose                                                                 |
 | ------------------------ | ----------------------------------------------------------------------- |
-| `/admin/login`           | Supabase email/password authentication                                  |
+| `/admin/login`           | Clerk email/password authentication                                     |
 | `/admin`                 | Publishing dashboard and collection status                              |
 | `/admin/[collection]`    | Create, edit, publish, unpublish, upload, and delete collection records |
 | `/admin/settings`        | Company contact details and social-channel settings                     |
@@ -93,23 +93,26 @@ components/
 docs/                   Operational documentation
 lib/
   admin/                CMS collection definitions and management interfaces
-  supabase/             Browser and server Supabase clients
+  auth/                 Clerk session and admin membership checks
+  cloudflare/           Private D1 gateway client
+  db/                   Parameterized queries and server validation
+  storage/              R2 upload verification and asset cleanup
   analytics.ts          GA4 event helpers
   attribution.ts        UTM capture, persistence, and form enrichment
   data.ts               Published-content queries and data mapping
   seo.ts                Canonical metadata and schema helpers
   settings.ts           Site settings, defaults, and derived contact links
 public/                 Brand assets and bundled downloadable resources
-supabase/               Supabase CLI configuration and checked-in migrations
+cloudflare/d1-worker/   D1 Worker, complete fresh schema, and Wrangler configuration
 ```
 
 ## Local development
 
 ### Prerequisites
 
-- Node.js 20.9 or newer
+- Node.js 22.13 or newer (Node.js 24 recommended for the local Worker tests)
 - npm
-- Access to an approved medhaup Supabase project
+- Company-owned Cloudflare and Clerk accounts for live backend setup
 - Appropriate Web3Forms and GA4 access when working on those integrations
 
 ### Installation
@@ -120,11 +123,19 @@ From the repository root:
 npm ci
 ```
 
-Create `.env.local` and add the required public configuration:
+Copy `.env.example` to `.env.local`. Follow [the backend setup guide](docs/cloudflare-clerk-setup.md) to fill in the service keys. Public pages can run with empty backend configuration; admin access fails closed until configured. Example configuration:
 
 ```dotenv
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
+D1_GATEWAY_URL=
+D1_GATEWAY_SECRET=
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_STAGING_BUCKET=medhaup-staging
+R2_PUBLIC_BUCKET=medhaup-assets
+NEXT_PUBLIC_R2_PUBLIC_URL=
 
 # Optional integrations
 NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
@@ -148,8 +159,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable                        | Required | Purpose                                                                                     |
 | ------------------------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Supabase project URL used by public pages and the admin CMS                                 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Browser-safe Supabase anonymous key; access must be constrained by RLS                      |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | For admin | Clerk application keys |
+| `D1_GATEWAY_URL`, `D1_GATEWAY_SECRET` | For content | Private Worker `/query` URL and shared server secret |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | For uploads | Server-only R2 S3 credentials |
+| `R2_STAGING_BUCKET`, `R2_PUBLIC_BUCKET` | For uploads | Separate private staging and public media buckets |
+| `NEXT_PUBLIC_R2_PUBLIC_URL` | For media | Public assets HTTPS custom domain; set at build time |
 | `NEXT_PUBLIC_GA_ID`             | No       | Enables Google Analytics and the custom funnel-event layer                                  |
 | `NEXT_PUBLIC_APP_STORE_URL`     | No       | Enables the Apple App Store action on the admission page                                    |
 | `AI_FEATURE_ENABLED`            | No       | Enables the page-aware AI UI when the provider key is configured; disabled by default       |
@@ -228,47 +242,19 @@ submission configuration is maintained separately in the admission and contact
 form components. Update third-party configuration only through company-owned
 accounts and verify both forms after any change.
 
-## Supabase provisioning
+## Backend provisioning
 
-The application expects the following tables:
+Follow [Cloudflare D1, R2, and Clerk setup](docs/cloudflare-clerk-setup.md).
+This is a fresh installation: content starts empty, and files are uploaded anew.
+The checked-in D1 schema defines all twelve CMS collections, site settings,
+Clerk admin membership, asset metadata, and file references.
 
-- `admins`
-- `products`
-- `blog_posts`
-- `pyqs`
-- `gallery_items`
-- `success_photos`
-- `current_affairs_monthly`
-- `current_affairs_daily`
-- `resources`
-- `syllabus_subjects`
-- `syllabus_downloads`
-- `batches`
-- `norcet_resources`
-- `site_settings`
-
-It also expects public `images` and `files` storage buckets. Their policies must
-allow published assets to be read publicly and restrict create, update, and
-delete operations to authorized administrators.
-
-The checked-in migrations currently provision the `admins`, `success_photos`
-and `norcet_resources` tables and their row-level security policies. They do
-**not** contain the complete production schema or seed data. A fresh local Supabase
-instance therefore cannot reproduce the entire application from migrations
-alone; use an approved provisioned project until full schema migrations are
-available.
-
-To authorize an admin:
-
-1. Create the employee's email/password user in Supabase Auth.
-2. Add that user's UUID to `public.admins` through an approved administrative
-   workflow.
-3. Confirm that row-level security policies grant that member only the required
-   CMS and storage operations.
-
-The route guard in the browser improves the admin experience, but it is not the
-security boundary. Supabase row-level security and storage policies must protect
-all company data independently of the interface.
+Vercel runs Next.js. An authenticated Worker with a native D1 binding accepts
+server-only queries; the browser never receives the gateway secret. Each admin
+API checks both the Clerk session and an explicit `admins` table membership.
+R2 uploads go into a private staging bucket, are validated by the server, and
+are then promoted to the public asset bucket. Images are converted to WebP and
+served directly from R2; PDFs carry attachment headers.
 
 ## Content operations
 
@@ -306,7 +292,7 @@ records the page shows a resource enquiry block with an enrolment link; the rest
 eligibility, FAQs) is code-managed in `lib/norcet.ts`, as is the course availability
 state (`NORCET_COURSE.status`). Uploads use the existing `files` bucket under
 `norcet-resources/`. Run the checked-in migration
-`supabase/migrations/202609100001_create_norcet_resources.sql` on the project
+`cloudflare/d1-worker/migrations/0001_fresh_content.sql` on the project
 before using the collection.
 
 The NORCET enrolment enquiry form on `/norcet` submits to Web3Forms with
@@ -358,7 +344,9 @@ three locations and validate generated metadata before release.
 Run the complete local quality gate before opening or merging a change:
 
 ```bash
+npm test
 npm run lint
+npx next typegen
 npx tsc --noEmit
 npm run build
 ```
@@ -374,20 +362,20 @@ npm run build
 Run `node --test scripts/ai-gemini.test.mjs` for the Gemini adapter and route
 regression checks, and `node --test scripts/norcet.test.mjs` for the NORCET
 data, AI context, admin collection and section rendering checks; they mock
-Gemini, Tavily and Supabase and do not consume API quota. Lint,
+Gemini, Tavily, D1, Clerk and R2 and do not consume API quota. Lint,
 type-check, build, and focused browser verification remain the release baseline.
 
 ## Deployment
 
 Deploy to a platform that supports the full Next.js server runtime and
 revalidation behavior. A plain static export is not the expected deployment
-model because the application loads changing Supabase content on the server.
+model because the application loads changing D1 content on the server.
 
 Before a production release:
 
 1. Configure all required environment variables in the build environment.
 2. Run lint, type-check, and the production build.
-3. Confirm Supabase RLS, storage policies, and admin membership.
+3. Confirm Clerk restrictions, D1 admin membership, Worker authentication, and R2 bucket access.
 4. Smoke-test public content, authentication, uploads, both lead forms, and
    WhatsApp/app links.
 5. Verify canonical metadata, `robots.txt`, `sitemap.xml`, and social previews.
@@ -401,12 +389,12 @@ Before a production release:
   fixtures, and logs.
 - Preserve strict TypeScript and the existing server/client component
   boundaries.
-- Treat Supabase RLS as mandatory for every exposed table and storage bucket.
+- Enforce server-side admin authorization on every admin API and keep the D1 gateway private.
 - Do not expose private keys through `NEXT_PUBLIC_*` variables or client code.
 - Preserve draft/publish behavior when adding content collections.
 - Update operational documentation whenever analytics events, environment
   variables, routes, or external integrations change.
-- Use company-owned accounts for Supabase, analytics, forms, domains, and app
+- Use company-owned accounts for Cloudflare, Clerk, analytics, forms, domains, and app
   store integrations.
 
 ## Ownership

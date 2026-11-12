@@ -1,6 +1,8 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { CURRENT_BATCH, CURRENT_BATCH_ID } from "./batches";
-import { supabaseServer } from "./supabase/server";
+import { isDatabaseConfigured } from "./cloudflare/d1";
+import { getPublishedPost, getSettings, listPublishedRows } from "./db/repository";
 import { SITE_DEFAULTS, type SiteSettings } from "./settings";
 import type { SuccessAspect, SuccessStory } from "./successStories";
 
@@ -8,8 +10,7 @@ export { waChatUrl } from "./settings";
 export type { SiteSettings };
 
 /* snake_case DB rows → camelCase props the components use */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const toCamel = <T>(row: Record<string, any>): T =>
+const toCamel = <T>(row: Record<string, unknown>): T =>
   Object.fromEntries(
     Object.entries(row).map(([k, v]) => [
       k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
@@ -17,21 +18,31 @@ const toCamel = <T>(row: Record<string, any>): T =>
     ]),
   ) as T;
 
-async function fetchPublished<T>(
-  table: string,
-  orderBy: string,
-  ascending = false,
-): Promise<T[]> {
-  const { data, error } = await supabaseServer()
-    .from(table)
-    .select("*")
-    .eq("published", true)
-    .order(orderBy, { ascending });
-  if (error) {
-    console.error(`[data] ${table}:`, error.message);
-    return [];
+// This project retains Next's route revalidation model (cacheComponents is
+// disabled). Cache DB reads explicitly so AI POSTs reuse public content too.
+// Errors are caught outside the cache: outages must not cache empty results.
+// Keep each cache entry below Next's 2 MB limit even for maximum-length,
+// escaped text fields. Only individual pages are persisted, never the merged
+// collection; the gateway also receives bounded, small result requests.
+const PUBLIC_PAGE_SIZE = 10;
+const readPublishedPage = unstable_cache(
+  async (table: string, offset: number) =>
+    listPublishedRows(table, { limit: PUBLIC_PAGE_SIZE, offset }),
+  ["d1-published-content-page-v2"],
+  { revalidate: 300, tags: ["content"] },
+);
+
+async function fetchPublished<T>(table: string): Promise<T[]> {
+  if (!isDatabaseConfigured()) return [];
+  try {
+    const rows: T[] = [];
+    for (let offset = 0; ; offset += PUBLIC_PAGE_SIZE) {
+      const page = await readPublishedPage(table, offset);
+      rows.push(...page.map((row) => toCamel<T>(row)));
+      if (page.length < PUBLIC_PAGE_SIZE) return rows;
+    }
   }
-  return (data ?? []).map((r) => toCamel<T>(r));
+  catch { console.error(`[data] Could not load published ${table}.`); return []; }
 }
 
 /* ---------- Types (camelCase mirrors of the tables) ---------- */
@@ -166,27 +177,17 @@ const isValidPublicSlug = (slug: string) =>
 
 /* ---------- Fetchers (published rows only) ---------- */
 export const getProducts = () =>
-  fetchPublished<Product>("products", "created_at");
+  fetchPublished<Product>("products");
 export const getPosts = async () =>
-  (await fetchPublished<BlogPost>("blog_posts", "date", false)).filter((post) =>
+  (await fetchPublished<BlogPost>("blog_posts")).filter((post) =>
     isValidPublicSlug(post.slug),
   );
-export const getPYQs = () => fetchPublished<PYQ>("pyqs", "year");
+export const getPYQs = () => fetchPublished<PYQ>("pyqs");
 export const getGallery = () =>
-  fetchPublished<GalleryItem>("gallery_items", "created_at");
+  fetchPublished<GalleryItem>("gallery_items");
 export async function getSuccessPhotos(): Promise<SuccessStory[]> {
-  const { data, error } = await supabaseServer()
-    .from("success_photos")
-    .select("id, src, alt, aspect, created_at")
-    .eq("published", true)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("[data] success photos:", error.message);
-    return [];
-  }
-
-  return (data ?? []).map((row) => {
+  const rows = await fetchPublished<{ id: string; src: string; alt: string; aspect: string }>("success_photos");
+  return rows.map((row) => {
     const aspect: SuccessAspect =
       row.aspect === "wide" || row.aspect === "square" ? row.aspect : "tall";
 
@@ -199,19 +200,19 @@ export async function getSuccessPhotos(): Promise<SuccessStory[]> {
   });
 }
 export const getMonthlyCA = () =>
-  fetchPublished<MonthlyCA>("current_affairs_monthly", "created_at");
+  fetchPublished<MonthlyCA>("current_affairs_monthly");
 export const getDailyCA = () =>
-  fetchPublished<DailyCA>("current_affairs_daily", "date");
+  fetchPublished<DailyCA>("current_affairs_daily");
 export const getResources = () =>
-  fetchPublished<Resource>("resources", "created_at");
+  fetchPublished<Resource>("resources");
 export const getSubjects = () =>
-  fetchPublished<SubjectSyllabus>("syllabus_subjects", "questions");
+  fetchPublished<SubjectSyllabus>("syllabus_subjects");
 export const getSyllabusDownloads = () =>
-  fetchPublished<SyllabusDownload>("syllabus_downloads", "created_at", true);
+  fetchPublished<SyllabusDownload>("syllabus_downloads");
 export const getNorcetResources = () =>
-  fetchPublished<NorcetResource>("norcet_resources", "created_at");
+  fetchPublished<NorcetResource>("norcet_resources");
 export const getBatches = async () => {
-  const batches = await fetchPublished<Batch>("batches", "created_at");
+  const batches = await fetchPublished<Batch>("batches");
   return batches.map((batch) =>
     batch.id === CURRENT_BATCH_ID
       ? {
@@ -223,34 +224,27 @@ export const getBatches = async () => {
   );
 };
 
+const readPostBySlug = unstable_cache(getPublishedPost, ["d1-published-post-v1"], { revalidate: 300, tags: ["content"] });
 export const getPostBySlug = cache(
   async (slug: string): Promise<BlogPost | null> => {
-    if (!isValidPublicSlug(slug)) return null;
-
-    const { data, error } = await supabaseServer()
-      .from("blog_posts")
-      .select("*")
-      .eq("slug", slug)
-      .eq("published", true)
-      .maybeSingle();
-    if (error) {
-      console.error("[data] blog_posts by slug:", error.message);
+    if (!isValidPublicSlug(slug) || !isDatabaseConfigured()) return null;
+    try {
+      const row = await readPostBySlug(slug);
+      return row ? toCamel<BlogPost>(row) : null;
+    } catch {
+      console.error("[data] Could not load the published article.");
       return null;
     }
-    return data ? toCamel<BlogPost>(data) : null;
   },
 );
 
 /* ---------- Site settings, merged over safe defaults ---------- */
+const readSettings = unstable_cache(getSettings, ["d1-public-settings-v1"], { revalidate: 300, tags: ["content"] });
 export async function getSiteSettings(): Promise<SiteSettings> {
-  const { data, error } = await supabaseServer()
-    .from("site_settings")
-    .select("data")
-    .eq("id", 1)
-    .maybeSingle();
-  if (error) {
-    console.error("[data] site_settings:", error.message);
+  if (!isDatabaseConfigured()) return SITE_DEFAULTS;
+  try { return { ...SITE_DEFAULTS, ...await readSettings() }; }
+  catch {
+    console.error("[data] Could not load site settings.");
     return SITE_DEFAULTS;
   }
-  return { ...SITE_DEFAULTS, ...(data?.data ?? {}) };
 }

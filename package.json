@@ -2,24 +2,36 @@
   "name": "edtech-platform",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test",
+    "db:dev": "wrangler dev --config cloudflare/d1-worker/wrangler.jsonc",
+    "db:deploy": "wrangler deploy --config cloudflare/d1-worker/wrangler.jsonc",
+    "db:migrate:local": "wrangler d1 migrations apply medhaup-content --local --config cloudflare/d1-worker/wrangler.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply medhaup-content --remote --config cloudflare/d1-worker/wrangler.jsonc"
   },
   "dependencies": {
-    "@next/third-parties": "^16.2.12",
-    "@supabase/supabase-js": "^2.112.1",
+    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/s3-request-presigner": "^3.1167.0",
+    "@clerk/nextjs": "^7.9.25",
+    "@next/third-parties": "^16.4.6",
     "clsx": "^2.1.1",
     "framer-motion": "^12.43.0",
     "lucide-react": "^1.28.0",
-    "next": "16.2.12",
+    "next": "^16.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-icons": "^5.7.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -27,8 +39,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "^16.4.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.160.1"
   }
 }

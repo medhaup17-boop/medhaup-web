@@ -45,17 +45,17 @@ const paper = {
   description: "Question paper",
   fileSize: "2.4 MB",
   paperUrl:
-    "https://example.supabase.co/storage/v1/object/public/files/pyq/paper.pdf",
+    "https://assets.example.com/files/pyq/paper.pdf",
   answerKeyUrl:
-    "https://example.supabase.co/storage/v1/object/public/files/pyq/key.pdf",
+    "https://assets.example.com/files/pyq/key.pdf",
   isNew: false,
 };
 
-test("public storage PDFs request attachment downloads and preserve URL encoding", () => {
+test("R2 PDF links preserve object URLs, signatures and filename encoding", () => {
   const url = new URL(
     downloads.getFileDownloadUrl(`${paper.paperUrl}?version=2`),
   );
-  assert.equal(url.searchParams.get("download"), "");
+  assert.equal(url.searchParams.has("download"), false);
   assert.equal(url.searchParams.get("version"), "2");
   assert.equal(
     downloads.getFileDownloadUrl("/resources/paper.pdf"),
@@ -66,7 +66,7 @@ test("public storage PDFs request attachment downloads and preserve URL encoding
   const encoded = paper.paperUrl.replace("paper.pdf", "paper%20one.pdf");
   assert.match(
     downloads.getFileDownloadUrl(encoded),
-    /paper%20one\.pdf\?download=$/,
+    /paper%20one\.pdf$/,
   );
 });
 
@@ -99,8 +99,8 @@ test("published records supply card titles, metadata, PDFs, and optional answer 
   );
   assert.match(html, /ANM GNM 2025 — Set B/);
   assert.match(html, /2\.4 MB/);
-  assert.match(html, /paper\.pdf\?download=/);
-  assert.match(html, /key\.pdf\?download=/);
+  assert.match(html, /href="https:\/\/assets\.example\.com\/files\/pyq\/paper\.pdf"/);
+  assert.match(html, /href="https:\/\/assets\.example\.com\/files\/pyq\/key\.pdf"/);
   assert.doesNotMatch(html, /PDF coming soon/);
   const withoutKey = renderToStaticMarkup(
     createElement(PreviousYearPapers, {
@@ -118,51 +118,51 @@ test("empty published data has no placeholder cards or broken download links", (
   assert.doesNotMatch(html, /<article|2025|download=/);
 });
 
-test("the public paper query excludes drafts and orders by descending year", async () => {
+test("the public D1 paper query excludes drafts and orders by descending year", async () => {
   const calls = [];
-  const query = {
-    select(value) {
-      calls.push(["select", value]);
-      return this;
+  const settings = loadTs("../lib/settings.ts");
+  const collections = loadTs("../lib/admin/collections.ts");
+  const validation = loadTs("../lib/db/validation.ts", {
+    "../admin/collections": collections,
+    "../settings": settings,
+  });
+  const repository = loadTs("../lib/db/repository.ts", {
+    "server-only": {},
+    "../cloudflare/d1": {
+      d1Query: async (sql, params) => {
+        calls.push({ sql, params });
+        return [{ id: "published", year: 2025, paper_url: paper.paperUrl, published: 1 }];
+      },
     },
-    eq(...args) {
-      calls.push(["eq", ...args]);
-      return this;
-    },
-    order(...args) {
-      calls.push(["order", ...args]);
-      return Promise.resolve({
-        data: [{ id: "published", paper_url: paper.paperUrl }],
-        error: null,
-      });
-    },
-  };
+    "../admin/collections": collections,
+    "./validation": validation,
+  });
   const { getPYQs } = loadTs("../lib/data.ts", {
+    "next/cache": { unstable_cache: (fn) => fn },
     "./batches": {},
-    "./settings": {},
-    "./supabase/server": {
-      supabaseServer: () => ({
-        from(table) {
-          calls.push(["from", table]);
-          return query;
-        },
-      }),
-    },
+    "./settings": settings,
+    "./cloudflare/d1": { isDatabaseConfigured: () => true },
+    "./db/repository": repository,
   });
   const papers = await getPYQs();
-  assert.deepEqual(calls, [
-    ["from", "pyqs"],
-    ["select", "*"],
-    ["eq", "published", true],
-    ["order", "year", { ascending: false }],
-  ]);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /FROM pyqs WHERE published = \? ORDER BY year DESC/);
+  assert.match(calls[0].sql, /LIMIT \? OFFSET \?/);
+  assert.deepEqual(calls[0].params, [1, 10, 0]);
   assert.equal(papers[0].paperUrl, paper.paperUrl);
 });
 
-test("homepage passes its fetched papers to the section immediately after the hero", async () => {
+test("homepage passes its fetched papers to the section after the hero and featured batch", async () => {
   const imports = Object.fromEntries(
     [
       "Hero",
+      "ChampionBatch",
+      "GnmTeaser",
+      "AnmTeaser",
+      "RrbTeaser",
+      "JenpasTeaser",
+      "NursingEntranceTeaser",
+      "DPharmacyTeaser",
       "OngoingBatch",
       "SubjectSyllabus",
       "WhyMedhaup",
@@ -188,7 +188,8 @@ test("homepage passes its fetched papers to the section immediately after the he
   );
   assert.equal(
     main.props.children[sectionIndex - 1].type,
-    imports["@/components/sections/Hero"],
+    imports["@/components/sections/ChampionBatch"],
   );
+  assert.ok(main.props.children.findIndex((child) => child?.type === imports["@/components/sections/Hero"]) < sectionIndex);
   assert.deepEqual(main.props.children[sectionIndex].props.papers, [paper]);
 });

@@ -27,12 +27,12 @@ Current architecture:
 - TypeScript
 - Tailwind CSS 4
 - Framer Motion
-- Supabase Postgres
-- Supabase Auth for admin
-- Supabase Storage
+- Cloudflare D1 via a private Worker gateway
+- Clerk for admin authentication
+- Cloudflare R2
 - GA4 through `@next/third-parties/google`
 - 60-second revalidation on most content routes
-- current public content is server-loaded from Supabase
+- current public content is server-loaded from D1 with shared published-content caching
 
 Important current paths:
 
@@ -50,13 +50,13 @@ components/
   ui/
 lib/
   admin/
-  supabase/
+  cloudflare/
   analytics.ts
   attribution.ts
   data.ts
   seo.ts
   settings.ts
-supabase/
+cloudflare/d1-worker/
 docs/
 ```
 

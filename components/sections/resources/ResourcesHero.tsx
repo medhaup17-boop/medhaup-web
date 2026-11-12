@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Gift, LockOpen, IndianRupee } from "lucide-react";
+import { LockOpen, IndianRupee } from "lucide-react";
 
 const PROMISES = [
   { icon: LockOpen, label: "No login required" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/ContentImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShoppingBag, MessageCircle, BadgeCheck, Truck } from "lucide-react";
 import clsx from "clsx";

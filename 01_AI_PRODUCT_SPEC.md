@@ -267,7 +267,7 @@ Recommended:
 
 Do not keep unlimited history.
 
-Do not store raw chat history in Supabase in Phase 1 unless there is a specific business requirement.
+Do not store raw chat history in D1 in Phase 1 unless there is a specific business requirement.
 
 ---
 

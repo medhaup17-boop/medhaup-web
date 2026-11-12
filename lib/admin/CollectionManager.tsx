@@ -13,7 +13,7 @@ import {
   Check,
 } from "lucide-react";
 import clsx from "clsx";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { adminRequest, collectionPath, uploadAsset } from "@/lib/admin/api";
 import type { Collection, Field } from "@/lib/admin/collections";
 import { formatFileSize, validatePdfUpload } from "@/lib/admin/uploads";
 
@@ -25,44 +25,45 @@ export default function CollectionManager({
 }: {
   collection: Collection;
 }) {
-  const supabase = supabaseBrowser();
   const [rows, setRows] = useState<Row[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [form, setForm] = useState<Row>({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
 
+  const pageSize = collection.slug === "blogs" ? 10 : 50;
+  const listPath = `${collectionPath(collection.slug)}?limit=${pageSize}&offset=${page * pageSize}`;
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error: loadError } = await supabase
-      .from(collection.table)
-      .select("*")
-      .order("created_at", { ascending: false });
-    setRows(data ?? []);
-    if (loadError) setError(`Could not load items: ${loadError.message}`);
-    setLoading(false);
-  }, [collection.table, supabase]);
+    try {
+      const data = await adminRequest<{ rows: Row[]; hasMore: boolean }>(listPath);
+      setRows(data.rows);
+      setHasMore(data.hasMore);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not load items.");
+    } finally {
+      setLoading(false);
+    }
+  }, [listPath]);
 
   useEffect(() => {
-    let active = true;
-
-    supabase
-      .from(collection.table)
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data, error: loadError }) => {
-        if (!active) return;
-        setRows(data ?? []);
-        if (loadError) setError(`Could not load items: ${loadError.message}`);
-        setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [collection.table, supabase]);
+    const controller = new AbortController();
+    adminRequest<{ rows: Row[]; hasMore: boolean }>(listPath, { signal: controller.signal })
+      .then((data) => {
+        setRows(data.rows);
+        setHasMore(data.hasMore);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not load items.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [listPath]);
 
   useEffect(() => {
     if (editing === null) return;
@@ -121,20 +122,10 @@ export default function CollectionManager({
     try {
       const isPdf = field.accept === "application/pdf";
       if (isPdf) await validatePdfUpload(file);
-      const path = `${collection.slug}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-      const { error: uploadError } = await supabase.storage
-        .from(field.bucket)
-        .upload(
-          path,
-          file,
-          isPdf ? { contentType: "application/pdf" } : undefined,
-        );
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from(field.bucket).getPublicUrl(path);
+      const asset = await uploadAsset(collection.slug, field.name, file);
       setForm((current) => ({
         ...current,
-        [field.name]: data.publicUrl,
+        [field.name]: asset.url,
         ...(field.fileSizeField
           ? { [field.fileSizeField]: formatFileSize(file.size) }
           : {}),
@@ -196,65 +187,47 @@ export default function CollectionManager({
       payload[f.name] = v;
     });
 
-    const q =
-      editing === "new"
-        ? supabase.from(collection.table).insert(payload)
-        : supabase
-            .from(collection.table)
-            .update(payload)
-            .eq("id", (editing as Row).id);
-    const { error } = await q;
-    setSaving(false);
-    if (error) setError(error.message);
-    else {
+    try {
+      const result = await adminRequest<{ warning?: string }>(collectionPath(collection.slug, editing === "new" ? undefined : String((editing as Row).id)), {
+        method: editing === "new" ? "POST" : "PATCH",
+        body: JSON.stringify(payload),
+      });
+      setWarning(result.warning ?? "");
       setEditing(null);
-      load();
+      await load();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not save this item.");
+    } finally {
+      setSaving(false);
     }
   };
 
   const togglePublish = async (row: Row) => {
+    if (saving) return;
     setError("");
-    const { error: publishError } = await supabase
-      .from(collection.table)
-      .update({ published: !row.published })
-      .eq("id", row.id);
-    if (publishError) {
-      setError(`Could not change publishing status: ${publishError.message}`);
-      return;
-    }
-    await load();
-  };
-
-  /* Extract "bucket" + "path" from a Supabase public URL:
-     .../storage/v1/object/public/<bucket>/<path> */
-  const parseStorageUrl = (url: string) => {
-    const m = String(url).match(
-      /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/,
-    );
-    return m ? { bucket: m[1], path: decodeURIComponent(m[2]) } : null;
+    setSaving(true);
+    try {
+      const result = await adminRequest<{ warning?: string }>(collectionPath(collection.slug, String(row.id)), {
+        method: "PATCH", body: JSON.stringify({ published: !row.published }),
+      });
+      setWarning(result.warning ?? "");
+      await load();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not change publishing status.");
+    } finally { setSaving(false); }
   };
 
   const remove = async (row: Row) => {
-    if (
-      !confirm(
-        `Delete this ${collection.singular.toLowerCase()}? Its uploaded files will also be deleted. This cannot be undone.`,
-      )
-    )
-      return;
-
-    // Clean up any storage files referenced by file/image fields
-    const fileFields = collection.fields.filter(
-      (f) => f.type === "file" || f.type === "image",
-    );
-    for (const f of fileFields) {
-      const parsed = row[f.name] ? parseStorageUrl(row[f.name]) : null;
-      if (parsed) {
-        await supabase.storage.from(parsed.bucket).remove([parsed.path]);
-      }
-    }
-
-    await supabase.from(collection.table).delete().eq("id", row.id);
-    load();
+    if (saving || !confirm(`Delete this ${collection.singular.toLowerCase()} and its unused uploaded files? This cannot be undone.`)) return;
+    setError("");
+    setSaving(true);
+    try {
+      const result = await adminRequest<{ warning?: string }>(collectionPath(collection.slug, String(row.id)), { method: "DELETE" });
+      setWarning(result.warning ?? "");
+      await load();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not delete this item.");
+    } finally { setSaving(false); }
   };
 
   /* ---------- render ---------- */
@@ -278,6 +251,7 @@ export default function CollectionManager({
         </button>
       </div>
 
+      {warning && editing === null && <p role="status" className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</p>}
       {error && editing === null && (
         <p role="alert" className="mt-4 text-sm font-medium text-red-600">
           {error}
@@ -418,6 +392,12 @@ export default function CollectionManager({
             </table>
           </>
         )}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+        <button type="button" disabled={page === 0 || loading || saving} onClick={() => { setLoading(true); setError(""); setPage((value) => value - 1); }} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Previous</button>
+        <span className="text-navy/60">Page {page + 1}</span>
+        <button type="button" disabled={!hasMore || loading || saving} onClick={() => { setLoading(true); setError(""); setPage((value) => value + 1); }} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Next</button>
       </div>
 
       {/* Editor drawer */}

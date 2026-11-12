@@ -1,0 +1,16 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "medhaup-d1-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-12",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "medhaup-content",
+      "database_id": "60470240-ee8c-48e1-8286-d808a7cef2aa",
+      "migrations_dir": "migrations",
+    },
+  ],
+  // Configure D1_GATEWAY_SECRET with `wrangler secret put`, never in this file.
+}
