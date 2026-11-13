@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test",
+    "admin:setup": "node scripts/setup-admin.mjs",
     "db:dev": "wrangler dev --config cloudflare/d1-worker/wrangler.jsonc",
     "db:deploy": "wrangler deploy --config cloudflare/d1-worker/wrangler.jsonc",
     "db:migrate:local": "wrangler d1 migrations apply medhaup-content --local --config cloudflare/d1-worker/wrangler.jsonc",
@@ -19,7 +20,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1167.0",
     "@aws-sdk/s3-request-presigner": "^3.1167.0",
-    "@clerk/nextjs": "^7.9.25",
     "@next/third-parties": "^16.4.6",
     "clsx": "^2.1.1",
     "framer-motion": "^12.43.0",

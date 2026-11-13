@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Image from "@/components/ui/ContentImage";
 import Link from "next/link";
 import {
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { adminRequest, collectionPath, uploadAsset } from "@/lib/admin/api";
+import { useCollectionRows } from "@/lib/admin/useCollectionRows";
 
 type PhotoAspect = "tall" | "wide" | "square";
 
@@ -68,11 +69,8 @@ function detectAspect(file: File): Promise<PhotoAspect> {
 
 export default function SuccessPhotosManager() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<SuccessPhotoRow[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const mutationPending = useRef(false);
   const [mutating, setMutating] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
@@ -80,28 +78,11 @@ export default function SuccessPhotosManager() {
   const [warning, setWarning] = useState("");
   const [success, setSuccess] = useState("");
 
-  const listPath = `${collectionPath(COLLECTION)}?limit=50&offset=${page * 50}`;
-  const loadRows = useCallback(async () => {
-    try {
-      const data = await adminRequest<{ rows: SuccessPhotoRow[]; hasMore: boolean }>(listPath);
-      setRows(data.rows);
-      setHasMore(data.hasMore);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not load photos.");
-    } finally { setLoading(false); }
-  }, [listPath]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    adminRequest<{ rows: SuccessPhotoRow[]; hasMore: boolean }>(listPath, { signal: controller.signal })
-      .then((data) => { setRows(data.rows); setHasMore(data.hasMore); })
-      .catch((error) => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not load photos."); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [listPath]);
+  const { rows, page, hasMore, loading, goToPage, removeRow, replaceRow, insertRows } =
+    useCollectionRows<SuccessPhotoRow>(COLLECTION, 50, setError);
 
   const uploadFiles = async (selectedFiles: File[]) => {
-    if (uploading || mutating) return;
+    if (mutationPending.current || loading) return;
 
     const files = selectedFiles.filter((file) =>
       file.type.startsWith("image/"),
@@ -111,6 +92,7 @@ export default function SuccessPhotosManager() {
       return;
     }
 
+    mutationPending.current = true;
     setUploading(true);
     setError("");
     setSuccess("");
@@ -118,6 +100,7 @@ export default function SuccessPhotosManager() {
 
     const failures: string[] = [];
     let uploadedCount = 0;
+    const uploadedRows: SuccessPhotoRow[] = [];
 
     for (const [index, file] of files.entries()) {
       let uploadedAssetId: string | null = null;
@@ -126,10 +109,11 @@ export default function SuccessPhotosManager() {
         const aspect = await detectAspect(file);
         const asset = await uploadAsset(COLLECTION, "src", file);
         uploadedAssetId = asset.assetId;
-        await adminRequest(collectionPath(COLLECTION), {
+        const result = await adminRequest<{ row: SuccessPhotoRow }>(collectionPath(COLLECTION), {
           method: "POST",
           body: JSON.stringify({ src: asset.url, alt: fileAlt(file.name), aspect, published: true }),
         });
+        uploadedRows.unshift(result.row);
         uploadedAssetId = null;
         uploadedCount += 1;
       } catch (uploadError) {
@@ -142,7 +126,8 @@ export default function SuccessPhotosManager() {
       }
     }
 
-    await loadRows();
+    insertRows(uploadedRows);
+    mutationPending.current = false;
     setUploading(false);
     setProgress(null);
 
@@ -159,31 +144,33 @@ export default function SuccessPhotosManager() {
   };
 
   const togglePublished = async (row: SuccessPhotoRow) => {
-    if (mutating || uploading) return;
+    if (mutationPending.current) return;
+    mutationPending.current = true;
     setMutating(true);
     setError("");
     try {
-      const result = await adminRequest<{ warning?: string }>(collectionPath(COLLECTION, row.id), {
+      const result = await adminRequest<{ row: SuccessPhotoRow; warning?: string }>(collectionPath(COLLECTION, row.id), {
         method: "PATCH", body: JSON.stringify({ published: !row.published }),
       });
       setWarning(result.warning ?? "");
-      setRows((current) => current.map((item) => item.id === row.id ? { ...item, published: !item.published } : item));
+      replaceRow(result.row);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not change publishing status.");
-    } finally { setMutating(false); }
+    } finally { mutationPending.current = false; setMutating(false); }
   };
 
   const removePhoto = async (row: SuccessPhotoRow) => {
-    if (mutating || uploading || !confirm("Delete this success photo? This cannot be undone.")) return;
+    if (mutationPending.current || !confirm("Delete this success photo? This cannot be undone.")) return;
+    mutationPending.current = true;
     setMutating(true);
     setError("");
     try {
       const result = await adminRequest<{ warning?: string }>(collectionPath(COLLECTION, row.id), { method: "DELETE" });
       setWarning(result.warning ?? "");
-      await loadRows();
+      removeRow(row.id);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not delete photo.");
-    } finally { setMutating(false); }
+    } finally { mutationPending.current = false; setMutating(false); }
   };
 
   return (
@@ -241,7 +228,7 @@ export default function SuccessPhotosManager() {
         </p>
         <button
           type="button"
-          disabled={uploading || mutating}
+          disabled={loading || uploading || mutating}
           onClick={() => inputRef.current?.click()}
           className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-dark disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
@@ -253,7 +240,7 @@ export default function SuccessPhotosManager() {
           type="file"
           accept="image/*"
           multiple
-          disabled={uploading || mutating}
+          disabled={loading || uploading || mutating}
           className="hidden"
           onChange={(event) => {
             const files = Array.from(event.target.files ?? []);
@@ -373,9 +360,9 @@ export default function SuccessPhotosManager() {
         </div>
       )}
       <div className="mt-5 flex items-center justify-between gap-3 text-sm">
-        <button type="button" disabled={page === 0 || loading || uploading || mutating} onClick={() => { setLoading(true); setError(""); setPage((value) => value - 1); }} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Previous</button>
+        <button type="button" disabled={page === 0 || loading || uploading || mutating} onClick={() => goToPage(page - 1)} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Previous</button>
         <span className="text-navy/60">Page {page + 1}</span>
-        <button type="button" disabled={!hasMore || loading || uploading || mutating} onClick={() => { setLoading(true); setError(""); setPage((value) => value + 1); }} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Next</button>
+        <button type="button" disabled={!hasMore || loading || uploading || mutating} onClick={() => goToPage(page + 1)} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Next</button>
       </div>
     </div>
   );

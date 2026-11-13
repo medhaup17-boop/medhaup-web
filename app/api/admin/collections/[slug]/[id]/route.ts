@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin";
 import { getCollection } from "@/lib/admin/collections";
 import { deleteCollectionRow, getCollectionRow, updateCollectionRow } from "@/lib/db/repository";
@@ -8,13 +9,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ slug: string; id: string }> };
 
-async function cleanup(row: Record<string, unknown>) {
-  try {
-    const result = await cleanupRecordAssets(row);
-    return result.failed > 0 ? "Content saved. Some unused files need another cleanup attempt." : undefined;
-  } catch {
-    return "Content saved. Unused file cleanup could not finish.";
-  }
+function cleanupAfterResponse(row: Record<string, unknown>) {
+  // Content and its references are already committed. R2 housekeeping must
+  // not keep a deleted item visible while storage requests finish. Next keeps
+  // this task alive after the response; dashboard cleanup retries failures.
+  after(async () => {
+    try {
+      const result = await cleanupRecordAssets(row);
+      if (result.failed > 0) console.error("[admin] Unused file cleanup needs another attempt.");
+    } catch {
+      console.error("[admin] Unused file cleanup could not finish.");
+    }
+  });
 }
 
 export async function PATCH(request: Request, context: Context) {
@@ -30,8 +36,8 @@ export async function PATCH(request: Request, context: Context) {
     const row = await updateCollectionRow(slug, id, payload);
     if (!row) throw new ApiError("Item not found.", 404);
     invalidateContent();
-    const warning = await cleanup(previous);
-    return adminJson({ row, ...(warning ? { warning } : {}) });
+    cleanupAfterResponse(previous);
+    return adminJson({ row });
   } catch (error) {
     return adminError(error);
   }
@@ -46,8 +52,8 @@ export async function DELETE(request: Request, context: Context) {
     const row = await deleteCollectionRow(slug, id);
     if (!row) throw new ApiError("Item not found.", 404);
     invalidateContent();
-    const warning = await cleanup(row);
-    return adminJson({ deleted: true, ...(warning ? { warning } : {}) });
+    cleanupAfterResponse(row);
+    return adminJson({ deleted: true });
   } catch (error) {
     return adminError(error);
   }

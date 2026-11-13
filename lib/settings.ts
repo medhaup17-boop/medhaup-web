@@ -57,7 +57,7 @@ export function buildSite(s: SiteSettings): SiteShape {
     name: "medhaup",
     phone: s.phone,
     phoneDisplay: s.phoneDisplay,
-    phoneHref: `tel:+${s.whatsappNumber}`,
+    phoneHref: s.phone ? `tel:+${s.phone.length === 10 ? "91" : ""}${s.phone}` : "",
     email: s.email,
     emailHref: `mailto:${s.email}`,
     callingHours: s.callingHours,

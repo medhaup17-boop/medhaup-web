@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -16,19 +16,18 @@ import clsx from "clsx";
 import { adminRequest, collectionPath, uploadAsset } from "@/lib/admin/api";
 import type { Collection, Field } from "@/lib/admin/collections";
 import { formatFileSize, validatePdfUpload } from "@/lib/admin/uploads";
+import { useCollectionRows } from "@/lib/admin/useCollectionRows";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
+type SavedRow = Row & { id: string };
 
 export default function CollectionManager({
   collection,
 }: {
   collection: Collection;
 }) {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const mutationPending = useRef(false);
   const [editing, setEditing] = useState<Row | "new" | null>(null);
   const [form, setForm] = useState<Row>({});
   const [saving, setSaving] = useState(false);
@@ -37,33 +36,8 @@ export default function CollectionManager({
   const [warning, setWarning] = useState("");
 
   const pageSize = collection.slug === "blogs" ? 10 : 50;
-  const listPath = `${collectionPath(collection.slug)}?limit=${pageSize}&offset=${page * pageSize}`;
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await adminRequest<{ rows: Row[]; hasMore: boolean }>(listPath);
-      setRows(data.rows);
-      setHasMore(data.hasMore);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Could not load items.");
-    } finally {
-      setLoading(false);
-    }
-  }, [listPath]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    adminRequest<{ rows: Row[]; hasMore: boolean }>(listPath, { signal: controller.signal })
-      .then((data) => {
-        setRows(data.rows);
-        setHasMore(data.hasMore);
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not load items.");
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [listPath]);
+  const { rows, page, hasMore, loading, goToPage, removeRow, replaceRow, insertRow } =
+    useCollectionRows<SavedRow>(collection.slug, pageSize, setError);
 
   useEffect(() => {
     if (editing === null) return;
@@ -85,6 +59,7 @@ export default function CollectionManager({
 
   /* ---------- helpers ---------- */
   const openNew = () => {
+    if (mutationPending.current || loading) return;
     const blank: Row = {};
     collection.fields.forEach((f) => {
       blank[f.name] =
@@ -100,6 +75,7 @@ export default function CollectionManager({
   };
 
   const openEdit = (row: Row) => {
+    if (mutationPending.current || loading) return;
     const values: Row = {};
     collection.fields.forEach((f) => {
       values[f.name] =
@@ -116,7 +92,8 @@ export default function CollectionManager({
     setForm((f) => ({ ...f, [name]: value }));
 
   const uploadFile = async (field: Field, file: File) => {
-    if (uploading !== null || saving || !field.bucket) return;
+    if (mutationPending.current || !field.bucket) return;
+    mutationPending.current = true;
     setError("");
     setUploading(field.name);
     try {
@@ -135,6 +112,7 @@ export default function CollectionManager({
         `Upload failed: ${uploadError instanceof Error ? uploadError.message : "Please try again."}`,
       );
     } finally {
+      mutationPending.current = false;
       setUploading(null);
     }
   };
@@ -148,7 +126,7 @@ export default function CollectionManager({
       .replace(/-+/g, "-");
 
   const save = async () => {
-    if (saving || uploading !== null) return;
+    if (mutationPending.current || editing === null) return;
     setError("");
     // Auto-generate blog slug from title if left empty
     const working = { ...form };
@@ -169,6 +147,7 @@ export default function CollectionManager({
         return;
       }
     }
+    mutationPending.current = true;
     setSaving(true);
     const payload: Row = {};
     collection.fields.forEach((f) => {
@@ -188,46 +167,50 @@ export default function CollectionManager({
     });
 
     try {
-      const result = await adminRequest<{ warning?: string }>(collectionPath(collection.slug, editing === "new" ? undefined : String((editing as Row).id)), {
+      const result = await adminRequest<{ row: SavedRow; warning?: string }>(collectionPath(collection.slug, editing === "new" ? undefined : String(editing.id)), {
         method: editing === "new" ? "POST" : "PATCH",
         body: JSON.stringify(payload),
       });
       setWarning(result.warning ?? "");
+      if (editing === "new") insertRow(result.row);
+      else replaceRow(result.row);
       setEditing(null);
-      await load();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not save this item.");
     } finally {
+      mutationPending.current = false;
       setSaving(false);
     }
   };
 
   const togglePublish = async (row: Row) => {
-    if (saving) return;
+    if (mutationPending.current) return;
+    mutationPending.current = true;
     setError("");
     setSaving(true);
     try {
-      const result = await adminRequest<{ warning?: string }>(collectionPath(collection.slug, String(row.id)), {
+      const result = await adminRequest<{ row: SavedRow; warning?: string }>(collectionPath(collection.slug, String(row.id)), {
         method: "PATCH", body: JSON.stringify({ published: !row.published }),
       });
       setWarning(result.warning ?? "");
-      await load();
+      replaceRow(result.row);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not change publishing status.");
-    } finally { setSaving(false); }
+    } finally { mutationPending.current = false; setSaving(false); }
   };
 
   const remove = async (row: Row) => {
-    if (saving || !confirm(`Delete this ${collection.singular.toLowerCase()} and its unused uploaded files? This cannot be undone.`)) return;
+    if (mutationPending.current || !confirm(`Delete this ${collection.singular.toLowerCase()} and its unused uploaded files? This cannot be undone.`)) return;
+    mutationPending.current = true;
     setError("");
     setSaving(true);
     try {
       const result = await adminRequest<{ warning?: string }>(collectionPath(collection.slug, String(row.id)), { method: "DELETE" });
       setWarning(result.warning ?? "");
-      await load();
+      removeRow(String(row.id));
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not delete this item.");
-    } finally { setSaving(false); }
+    } finally { mutationPending.current = false; setSaving(false); }
   };
 
   /* ---------- render ---------- */
@@ -245,6 +228,7 @@ export default function CollectionManager({
         </div>
         <button
           onClick={openNew}
+          disabled={loading || saving || uploading !== null}
           className="flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-orange px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-dark sm:w-auto"
         >
           <Plus size={16} aria-hidden="true" /> Add {collection.singular}
@@ -277,6 +261,7 @@ export default function CollectionManager({
                   <div className="flex items-center justify-between gap-3">
                     <button
                       onClick={() => togglePublish(row)}
+                      disabled={saving || uploading !== null}
                       className={clsx(
                         "flex min-h-10 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors",
                         row.published
@@ -294,6 +279,7 @@ export default function CollectionManager({
                     <div className="flex gap-1">
                       <button
                         onClick={() => openEdit(row)}
+                        disabled={saving || uploading !== null}
                         aria-label={`Edit ${collection.singular.toLowerCase()}`}
                         className="grid h-11 w-11 place-items-center rounded-xl text-navy/60 transition-colors hover:bg-navy/5 hover:text-navy"
                       >
@@ -301,6 +287,7 @@ export default function CollectionManager({
                       </button>
                       <button
                         onClick={() => remove(row)}
+                        disabled={saving || uploading !== null}
                         aria-label={`Delete ${collection.singular.toLowerCase()}`}
                         className="grid h-11 w-11 place-items-center rounded-xl text-navy/60 transition-colors hover:bg-red-50 hover:text-red-600"
                       >
@@ -345,6 +332,7 @@ export default function CollectionManager({
                     <td className="px-4 py-3">
                       <button
                         onClick={() => togglePublish(row)}
+                        disabled={saving || uploading !== null}
                         className={clsx(
                           "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors",
                           row.published
@@ -372,6 +360,7 @@ export default function CollectionManager({
                       <div className="flex justify-end gap-1.5">
                         <button
                           onClick={() => openEdit(row)}
+                          disabled={saving || uploading !== null}
                           aria-label={`Edit ${collection.singular.toLowerCase()}`}
                           className="grid h-8 w-8 place-items-center rounded-lg text-navy/60 transition-colors hover:bg-navy/5 hover:text-navy"
                         >
@@ -379,6 +368,7 @@ export default function CollectionManager({
                         </button>
                         <button
                           onClick={() => remove(row)}
+                          disabled={saving || uploading !== null}
                           aria-label={`Delete ${collection.singular.toLowerCase()}`}
                           className="grid h-8 w-8 place-items-center rounded-lg text-navy/60 transition-colors hover:bg-red-50 hover:text-red-600"
                         >
@@ -395,9 +385,9 @@ export default function CollectionManager({
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 text-sm">
-        <button type="button" disabled={page === 0 || loading || saving} onClick={() => { setLoading(true); setError(""); setPage((value) => value - 1); }} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Previous</button>
+        <button type="button" disabled={page === 0 || loading || saving || uploading !== null} onClick={() => goToPage(page - 1)} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Previous</button>
         <span className="text-navy/60">Page {page + 1}</span>
-        <button type="button" disabled={!hasMore || loading || saving} onClick={() => { setLoading(true); setError(""); setPage((value) => value + 1); }} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Next</button>
+        <button type="button" disabled={!hasMore || loading || saving || uploading !== null} onClick={() => goToPage(page + 1)} className="min-h-11 rounded-xl border border-navy/15 px-4 font-semibold disabled:opacity-40">Next</button>
       </div>
 
       {/* Editor drawer */}

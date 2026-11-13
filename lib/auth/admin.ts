@@ -1,9 +1,9 @@
 import "server-only";
 
-import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isAdmin } from "@/lib/db/repository";
-import { isClerkConfigured } from "./config";
+import { isAdminAuthConfigured } from "./config";
+import { ADMIN_COOKIE_NAME, ADMIN_USER_ID, verifyAdminSession } from "./session";
 
 export class AdminAccessError extends Error {
   constructor(message: string, public readonly status: 401 | 403 | 503) {
@@ -12,30 +12,24 @@ export class AdminAccessError extends Error {
   }
 }
 
-/** Every admin API/action calls this: a Clerk account alone is not CMS access. */
+/** Check the live, revocable session on every protected API/page request. */
 export async function requireAdmin(): Promise<{ userId: string }> {
-  if (!isClerkConfigured()) {
+  if (!isAdminAuthConfigured()) {
     throw new AdminAccessError("Admin sign-in is not configured yet.", 503);
   }
 
-  let userId: string | null;
-  try {
-    ({ userId } = await auth({ acceptsToken: "session_token" }));
-  } catch {
-    throw new AdminAccessError("Unable to verify your session. Please try again.", 503);
-  }
-  if (!userId) throw new AdminAccessError("Please sign in to continue.", 401);
-
+  const token = (await cookies()).get(ADMIN_COOKIE_NAME)?.value;
+  if (!token) throw new AdminAccessError("Please sign in to continue.", 401);
   let allowed: boolean;
   try {
-    allowed = await isAdmin(userId);
+    allowed = await verifyAdminSession(token);
   } catch {
     throw new AdminAccessError("Admin access is temporarily unavailable. Please try again.", 503);
   }
   if (!allowed) {
-    throw new AdminAccessError("Your account does not have administrator access.", 403);
+    throw new AdminAccessError("Your session has expired. Please sign in again.", 401);
   }
-  return { userId };
+  return { userId: ADMIN_USER_ID };
 }
 
 export async function requireAdminPage(): Promise<{ userId: string }> {

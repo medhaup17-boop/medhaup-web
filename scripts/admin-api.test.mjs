@@ -34,11 +34,15 @@ function createLoader(overrides) {
 
 function harness(options = {}) {
   const events = [];
+  const afterTasks = [];
   class AdminAccessError extends Error {
     constructor(message, status) { super(message); this.status = status; }
   }
   const overrides = {
-    "next/server": { NextResponse: { json: (body, init) => Response.json(body, init) } },
+    "next/server": {
+      NextResponse: { json: (body, init) => Response.json(body, init) },
+      after: (callback) => { events.push(["scheduleCleanup"]); afterTasks.push(callback); },
+    },
     "next/cache": {
       revalidateTag: (...args) => events.push(["tag", ...args]),
       revalidatePath: (...args) => events.push(["path", ...args]),
@@ -97,6 +101,7 @@ function harness(options = {}) {
   };
   return {
     events,
+    async flushCleanup() { while (afterTasks.length) await afterTasks.shift()(); },
     collection: load("app/api/admin/collections/[slug]/route.ts"),
     item: load("app/api/admin/collections/[slug]/[id]/route.ts"),
     settings: load("app/api/admin/settings/route.ts"),
@@ -197,15 +202,24 @@ test("database read failures do not expose provider responses", async () => {
   assert.doesNotMatch(await response.text(), /SELECT|secret|token|private/);
 });
 
-test("cleanup failures report warnings after a successful update or delete", async () => {
+test("cleanup runs after a successful update or delete and catches failures without changing the response", async () => {
   for (const options of [{ cleanupFailed: 1 }, { cleanupThrows: true }]) {
     for (const method of ["PATCH", "DELETE"]) {
       const h = harness(options);
       const response = await h.item[method](request(method, method === "PATCH" ? { body: { title: "Updated" } } : {}), context());
       assert.equal(response.status, 200);
       const result = await response.json();
-      assert.match(result.warning, /cleanup/i);
+      assert.equal(result.warning, undefined);
       assert.ok(method === "PATCH" ? result.row.id === ID : result.deleted);
+      assert.ok(!h.events.some(([name]) => name === "cleanup"), "storage must not block the content response");
+      assert.ok(h.events.some(([name]) => name === "scheduleCleanup"));
+      const originalError = console.error;
+      const errors = [];
+      console.error = (...args) => errors.push(args);
+      try { await h.flushCleanup(); } finally { console.error = originalError; }
+      assert.equal(errors.length, 1);
+      assert.match(errors[0].join(" "), /cleanup/i);
+      assert.doesNotMatch(errors[0].join(" "), /provider|internals/);
       assert.ok(h.events.findIndex(([name]) => name === "tag") < h.events.findIndex(([name]) => name === "cleanup"));
     }
   }

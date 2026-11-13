@@ -28,7 +28,7 @@ export default async function SyllabusPage() {
     getSyllabusDownloads(),
   ]);
 
-  if (subjects.length === 0) {
+  if (subjects.length === 0 && downloads.length === 0) {
     return (
       <ComingSoon
         title="The Syllabus"
@@ -76,7 +76,7 @@ export default async function SyllabusPage() {
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
           <span className="inline-flex items-center gap-2 rounded-full border border-navy/15 bg-white px-4 py-1.5 text-xs font-semibold tracking-wide text-navy shadow-sm">
             <BookOpen size={14} className="text-orange" />
-            OFFICIAL SYLLABUS · {totalQ} QUESTIONS
+            OFFICIAL SYLLABUS{totalQ > 0 && <> · {totalQ} QUESTIONS</>}
           </span>
           <h1 className="font-heading mt-6 text-3xl font-extrabold tracking-tight text-navy sm:text-5xl">
             Know <span className="text-orange">exactly</span> what to study
@@ -126,7 +126,7 @@ export default async function SyllabusPage() {
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-navy/8">
                 <div
                   className="h-full rounded-full bg-orange"
-                  style={{ width: `${(s.questions / totalQ) * 100}%` }}
+                  style={{ width: `${totalQ > 0 ? (s.questions / totalQ) * 100 : 0}%` }}
                 />
               </div>
               {s.fileUrl && (

@@ -10,8 +10,10 @@ export type Env = {
 const MAX_BODY_BYTES = 512_000;
 const MAX_RESPONSE_BYTES = 8_000_000;
 const MAX_STATEMENTS = 40;
+// Retain the legacy table until older Vercel deployments are retired; the new
+// application authorizes exclusively through admin_sessions.
 const TABLES = new Set([
-  "admins", "assets", "asset_references", "site_settings", "products", "blog_posts", "pyqs",
+  "admins", "admin_sessions", "admin_login_limits", "assets", "asset_references", "site_settings", "products", "blog_posts", "pyqs",
   "gallery_items", "success_photos", "current_affairs_monthly", "current_affairs_daily",
   "resources", "syllabus_subjects", "syllabus_downloads", "norcet_resources", "batches",
 ]);

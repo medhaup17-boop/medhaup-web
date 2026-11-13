@@ -1,8 +1,9 @@
-# Fresh backend setup: Vercel, D1, R2, and Clerk
+# Backend setup: Vercel, D1, R2, and a single admin login
 
 The code is prepared for a fresh installation. No source data, files, or user
 accounts are imported. Vercel continues to host Next.js. Cloudflare runs a small
-private D1 gateway; R2 serves media directly; Clerk handles admin sessions.
+private D1 gateway; R2 serves media directly. A single administrator signs in
+with the email and password configured privately on the Next.js server.
 
 ## 1. Install and configure the local project
 
@@ -12,7 +13,8 @@ fake keys. Without backend credentials, public pages use empty content and safe
 settings defaults, and admin access fails closed with setup guidance.
 
 Use separate development and production resources and keys. Never commit
-`.env.local`, `.dev.vars`, an R2 secret, or the Worker gateway secret.
+`.env.local`, `.env.vercel.auth`, `.env.admin-credentials`, `.dev.vars`, an R2
+secret, or the Worker gateway secret.
 
 ## 2. Create the D1 database and private gateway
 
@@ -62,30 +64,74 @@ For local D1 development, put the secret in
 `D1_GATEWAY_URL=http://127.0.0.1:8787/query`. HTTP is permitted only for loopback
 addresses outside production. Local and remote databases are separate.
 
-## 3. Configure Clerk and authorize an administrator
+## 3. Configure the single administrator
 
-Create a Clerk application with email/password authentication. Set its access
-mode to **Invite-only** so public visitors cannot register. Configure its allowed
-domains and sign-in path for the Vercel/custom domain, using `/admin/login`.
-Use Clerk's development instance for local development and its production
-instance for production.
+The app has one administrator, defined by private environment variables. There
+is no registration, OTP, email service, or external authentication account.
+Use `/admin/login` to sign in with the configured email and password.
 
-Add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` to `.env.local` and
-the corresponding Vercel environment. The first is public; the second is private.
-The app already configures `/admin/login` and the `/admin` sign-in destination.
-
-Create the first administrator in the Clerk dashboard. Copy that user's `user_…`
-ID, then authorize that exact identity in D1. Replace the example ID below:
+First apply all D1 migrations and deploy the updated gateway:
 
 ```sh
-npx wrangler d1 execute medhaup-content --remote --config cloudflare/d1-worker/wrangler.jsonc --command "INSERT INTO admins (clerk_user_id) VALUES ('user_REPLACE_WITH_REAL_ID');"
+npm run db:migrate:remote
+npm run db:deploy
 ```
 
-For a local database, use `--local` instead of `--remote`. Development and
-production Clerk users have different IDs. Creating or inviting a Clerk user
-does not automatically grant CMS access. Every admin API checks the live D1
-membership record as well as the Clerk session. To revoke CMS access, delete
-that user's row from `admins` through your administrative workflow.
+This includes `0002_admin_auth.sql`, which adds session and login-attempt storage.
+The updated Worker must also be deployed because its query allowlist permits
+these new tables. Both steps are required before login. For a local D1 database,
+run `npm run db:migrate:local` and restart `npm run db:dev` instead. The historical
+`admins` table is no longer used; it can remain in the database.
+
+Generate the administrator configuration locally:
+
+```sh
+npm run admin:setup
+```
+
+The script prompts for an email and a masked password. Choose at least 15
+characters (up to 1024 UTF-8 bytes), or leave the password blank to generate a
+32-character password. It updates only the three admin variables in `.env.local`,
+preserving the other service settings. Existing administrator settings require
+confirmation before replacement. The script also writes these Git-ignored files:
+
+- `.env.vercel.auth`: the three private authentication variables for Vercel import.
+- `.env.admin-credentials`: the email and plaintext password for the owner to
+  retrieve privately. The app never reads this file. Save the password in your
+  password manager.
+
+Restart the local app after setup. For a terminal without interactive input,
+use `npm run admin:setup -- --email you@example.com --generate`. Replacing an
+existing configuration this way also requires `--force` and revokes its sessions
+once the updated environment is loaded.
+
+The password is never stored as plaintext in the application environment. The
+server requires:
+
+| Variable | Value |
+| --- | --- |
+| `ADMIN_EMAIL` | The single administrator's email address |
+| `ADMIN_PASSWORD_HASH` | The scrypt password hash produced by the setup script |
+| `ADMIN_SESSION_SECRET` | A secret generated from at least 32 random bytes |
+
+The hash format is `scrypt:32768:8:3:<salt32hex>:<hash128hex>`. Use the generated
+files instead of constructing or pasting a hash into a dotenv file by hand.
+None of these variables may use the `NEXT_PUBLIC_` prefix.
+
+Sessions last eight hours. Their opaque random tokens are sent in an HttpOnly,
+SameSite=Lax cookie, with Secure enabled in production. D1 stores only keyed
+SHA-256 (HMAC) digests of those tokens, together with a credential version and
+expiry time.
+Logging out revokes the session. Changing any of the three authentication
+variables invalidates existing sessions after the server restarts or Vercel
+redeploys. Run `npm run admin:setup` again to change the email or password, import
+the new values into Vercel, and redeploy.
+
+For an existing Clerk installation, remove `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+`CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_SIGN_IN_URL`, and
+`NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` from local and Vercel settings.
+Apply the migration, redeploy the Worker, configure the new admin variables,
+and redeploy the Next.js app. Previous Clerk sessions do not grant access.
 
 ## 4. Create two R2 Standard storage buckets
 
@@ -160,9 +206,11 @@ an upload that is currently being processed.
 
 ## 5. Configure Vercel and create the first content
 
-Add all required values from `.env.example` to the appropriate Vercel environment
-and redeploy. `NEXT_PUBLIC_*` values are embedded at build time, so changing the
-Clerk publishable key or asset domain requires a new deployment. Existing GA4,
+Add all required values from `.env.example` to the appropriate Vercel environment.
+Import `.env.vercel.auth` into Vercel's environment variables for the target
+environment, including Production for the live site, and redeploy. Remove the
+old Clerk variables if present. `NEXT_PUBLIC_*` values are embedded at build
+time, so changing the asset domain also requires a new deployment. Existing GA4,
 app-store, Gemini, and Tavily configuration remains optional and independent.
 
 Sign in at `/admin/login`. Create a batch, blog post, or resource; upload its file;
@@ -174,8 +222,10 @@ course copy and local `/resources/` files remain available on Vercel.
 
 Validate these flows with real credentials before production launch:
 
-- An invited and authorized admin can sign in; a signed-in non-admin cannot read
-  drafts, upload, edit settings, or mutate content.
+- The configured administrator can sign in; incorrect credentials are rejected.
+  Unauthenticated visitors cannot read drafts, upload, edit settings, or mutate
+  content. Logout revokes access, and changing an auth variable invalidates old
+  sessions after restart or redeployment.
 - PDF and image uploads work from the real browser origin; an oversized or
   incorrectly typed file is rejected before publication.
 - Create, edit, publish, unpublish, and delete update the public website and AI
@@ -190,7 +240,7 @@ Validate these flows with real credentials before production launch:
 This setup does not guarantee a permanently zero bill. D1 has daily row-operation
 limits and a 500 MB free per-database ceiling. The gateway uses Workers requests
 and CPU. R2 has free egress but meters storage and operations beyond its included
-allowances. Vercel and Clerk have their own limits. Check each provider dashboard
+allowances. Vercel has its own limits. Check each provider dashboard
 regularly; public files bypass Vercel only when served from R2. Existing bundled
 assets and HTML/API responses still use Vercel bandwidth.
 
@@ -211,5 +261,4 @@ npm run build
 Reference documentation: [D1](https://developers.cloudflare.com/d1/),
 [R2 signed URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/),
 [R2 public domains](https://developers.cloudflare.com/r2/buckets/public-buckets/),
-[Clerk Next.js](https://clerk.com/docs/nextjs/getting-started/quickstart), and
-[Clerk access restrictions](https://clerk.com/docs/guides/secure/restricting-access).
+and [Node.js scrypt](https://nodejs.org/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback).

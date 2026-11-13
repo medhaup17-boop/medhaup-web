@@ -20,6 +20,7 @@ export default function MarketingLinksPage() {
   const [content, setContent] = useState("");
   const [destination, setDestination] = useState<string>("/admission");
   const [copiedSource, setCopiedSource] = useState<string>();
+  const [copyError, setCopyError] = useState("");
 
   const links = useMemo(
     () =>
@@ -38,9 +39,15 @@ export default function MarketingLinksPage() {
   );
 
   async function copyLink(source: string, url: string) {
-    await navigator.clipboard.writeText(url);
-    setCopiedSource(source);
-    window.setTimeout(() => setCopiedSource(undefined), 1800);
+    setCopyError("");
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedSource(source);
+      window.setTimeout(() => setCopiedSource((current) => current === source ? undefined : current), 1800);
+    } catch {
+      setCopiedSource(undefined);
+      setCopyError("Your browser could not copy the link. Select and copy the URL below instead.");
+    }
   }
 
   return (
@@ -111,6 +118,7 @@ export default function MarketingLinksPage() {
         </p>
       )}
 
+      {copyError && <p role="alert" className="mt-4 text-sm text-red-600">{copyError}</p>}
       <section className="mt-5 grid gap-4 lg:grid-cols-2">
         {links.map((link) => (
           <article

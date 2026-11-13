@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LogOut,
   LayoutDashboard,
   Link2,
   Settings,
@@ -12,19 +11,17 @@ import {
   X,
 } from "lucide-react";
 import clsx from "clsx";
-import { useClerk } from "@clerk/nextjs";
 import { COLLECTIONS } from "@/lib/admin/collections";
+import SignOutButton from "./SignOutButton";
 
 type AdminNavigationProps = {
   pathname: string;
   onNavigate?: () => void;
-  onLogout: () => Promise<void>;
 };
 
 function AdminNavigation({
   pathname,
   onNavigate,
-  onLogout,
 }: AdminNavigationProps) {
   const linkClass = (active: boolean) =>
     clsx(
@@ -84,16 +81,7 @@ function AdminNavigation({
           <Settings size={17} aria-hidden="true" /> Site Settings
         </Link>
       </nav>
-      <button
-        type="button"
-        onClick={() => {
-          onNavigate?.();
-          void onLogout();
-        }}
-        className="mt-3 flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-      >
-        <LogOut size={17} aria-hidden="true" /> Log out
-      </button>
+      <SignOutButton variant="navigation" />
     </>
   );
 }
@@ -104,7 +92,6 @@ export default function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { signOut } = useClerk();
   const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
@@ -123,10 +110,6 @@ export default function AdminShell({
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [navOpen]);
-
-  const logout = async () => {
-    await signOut({ redirectUrl: "/admin/login" });
-  };
 
   return (
     <div className="min-h-dvh overflow-x-hidden bg-cream">
@@ -149,7 +132,7 @@ export default function AdminShell({
         <p className="font-heading px-2 py-3 text-lg font-extrabold text-white">
           medhaup <span className="text-orange">Admin</span>
         </p>
-        <AdminNavigation pathname={pathname} onLogout={logout} />
+        <AdminNavigation pathname={pathname} />
       </aside>
 
       {navOpen && (
@@ -183,7 +166,6 @@ export default function AdminShell({
             <AdminNavigation
               pathname={pathname}
               onNavigate={() => setNavOpen(false)}
-              onLogout={logout}
             />
           </aside>
         </div>

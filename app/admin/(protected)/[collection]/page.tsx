@@ -12,5 +12,5 @@ export default async function CollectionPage({
   const config = getCollection(collection);
   if (!config) notFound();
   if (config.manager === "success-photos") return <SuccessPhotosManager />;
-  return <CollectionManager collection={config} />;
+  return <CollectionManager key={config.slug} collection={config} />;
 }

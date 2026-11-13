@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import { CURRENT_BATCH, CURRENT_BATCH_ID } from "./batches";
 import { isDatabaseConfigured } from "./cloudflare/d1";
 import { getPublishedPost, getSettings, listPublishedRows } from "./db/repository";
 import { SITE_DEFAULTS, type SiteSettings } from "./settings";
@@ -211,18 +210,7 @@ export const getSyllabusDownloads = () =>
   fetchPublished<SyllabusDownload>("syllabus_downloads");
 export const getNorcetResources = () =>
   fetchPublished<NorcetResource>("norcet_resources");
-export const getBatches = async () => {
-  const batches = await fetchPublished<Batch>("batches");
-  return batches.map((batch) =>
-    batch.id === CURRENT_BATCH_ID
-      ? {
-          ...batch,
-          seatsFilled: CURRENT_BATCH.seatsFilled,
-          seatsTotal: CURRENT_BATCH.seatsTotal,
-        }
-      : batch,
-  );
-};
+export const getBatches = () => fetchPublished<Batch>("batches");
 
 const readPostBySlug = unstable_cache(getPublishedPost, ["d1-published-post-v1"], { revalidate: 300, tags: ["content"] });
 export const getPostBySlug = cache(

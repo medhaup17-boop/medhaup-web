@@ -34,8 +34,8 @@ project.
 | ---------------- | ------------------------------------------- | ------------------------------------------------------------------------------- |
 | Web application  | Next.js 16 App Router, React 19, TypeScript | Server-rendered pages, client interactions, routing, metadata, and revalidation |
 | Design system    | Tailwind CSS 4, Framer Motion, Lucide React | Responsive presentation, motion, and interface icons                            |
-| Application data | Cloudflare D1                           | Published content, batches, products, site settings, and admin membership       |
-| Authentication   | Clerk                               | Email/password sessions for the admin interface                                 |
+| Application data | Cloudflare D1                           | Published content, batches, products, site settings, and admin sessions       |
+| Authentication   | Private admin credentials and D1 sessions | Single administrator email/password login                                 |
 | File storage     | Cloudflare R2                            | Public images and downloadable PDF resources                                    |
 | Lead delivery    | Web3Forms                                   | Contact and admission form delivery                                             |
 | Measurement      | Google Analytics 4                          | Funnel events and campaign attribution                                          |
@@ -71,7 +71,7 @@ returns an empty result; content-driven pages then show their configured
 
 | Route                    | Purpose                                                                 |
 | ------------------------ | ----------------------------------------------------------------------- |
-| `/admin/login`           | Clerk email/password authentication                                     |
+| `/admin/login`           | Single administrator email/password login                                     |
 | `/admin`                 | Publishing dashboard and collection status                              |
 | `/admin/[collection]`    | Create, edit, publish, unpublish, upload, and delete collection records |
 | `/admin/settings`        | Company contact details and social-channel settings                     |
@@ -93,7 +93,7 @@ components/
 docs/                   Operational documentation
 lib/
   admin/                CMS collection definitions and management interfaces
-  auth/                 Clerk session and admin membership checks
+  auth/                 Password verification and D1-backed admin sessions
   cloudflare/           Private D1 gateway client
   db/                   Parameterized queries and server validation
   storage/              R2 upload verification and asset cleanup
@@ -112,7 +112,7 @@ cloudflare/d1-worker/   D1 Worker, complete fresh schema, and Wrangler configura
 
 - Node.js 22.13 or newer (Node.js 24 recommended for the local Worker tests)
 - npm
-- Company-owned Cloudflare and Clerk accounts for live backend setup
+- A company-owned Cloudflare account for live backend setup
 - Appropriate Web3Forms and GA4 access when working on those integrations
 
 ### Installation
@@ -126,8 +126,9 @@ npm ci
 Copy `.env.example` to `.env.local`. Follow [the backend setup guide](docs/cloudflare-clerk-setup.md) to fill in the service keys. Public pages can run with empty backend configuration; admin access fails closed until configured. Example configuration:
 
 ```dotenv
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+ADMIN_EMAIL=
+ADMIN_PASSWORD_HASH=
+ADMIN_SESSION_SECRET=
 D1_GATEWAY_URL=
 D1_GATEWAY_SECRET=
 R2_ACCOUNT_ID=
@@ -147,6 +148,14 @@ GEMINI_API_KEY=your-private-google-ai-studio-key
 GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
+Run `npm run admin:setup` to configure the admin email and password privately.
+Choose a password with at least 15 characters, or leave it blank to generate one.
+The script writes a password hash and a generated session secret to `.env.local`,
+preserving existing service settings. It also creates `.env.vercel.auth` for
+Vercel import and `.env.admin-credentials` for private owner lookup; all three
+files are ignored by Git. Apply the D1 migrations and deploy the gateway as
+described in the setup guide before signing in.
+
 Start the development server:
 
 ```bash
@@ -159,8 +168,8 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable                        | Required | Purpose                                                                                     |
 | ------------------------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | For admin | Clerk application keys |
-| `D1_GATEWAY_URL`, `D1_GATEWAY_SECRET` | For content | Private Worker `/query` URL and shared server secret |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET` | For admin | Private single-admin credentials generated by `npm run admin:setup`; never use `NEXT_PUBLIC_` |
+| `D1_GATEWAY_URL`, `D1_GATEWAY_SECRET` | For content and admin | Private Worker `/query` URL and shared server secret |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | For uploads | Server-only R2 S3 credentials |
 | `R2_STAGING_BUCKET`, `R2_PUBLIC_BUCKET` | For uploads | Separate private staging and public media buckets |
 | `NEXT_PUBLIC_R2_PUBLIC_URL` | For media | Public assets HTTPS custom domain; set at build time |
@@ -244,14 +253,18 @@ accounts and verify both forms after any change.
 
 ## Backend provisioning
 
-Follow [Cloudflare D1, R2, and Clerk setup](docs/cloudflare-clerk-setup.md).
+Follow [Cloudflare D1, R2, and admin login setup](docs/cloudflare-clerk-setup.md).
 This is a fresh installation: content starts empty, and files are uploaded anew.
 The checked-in D1 schema defines all twelve CMS collections, site settings,
-Clerk admin membership, asset metadata, and file references.
+admin sessions and login-attempt storage, asset metadata, and file references.
 
 Vercel runs Next.js. An authenticated Worker with a native D1 binding accepts
 server-only queries; the browser never receives the gateway secret. Each admin
-API checks both the Clerk session and an explicit `admins` table membership.
+API checks the administrator's D1-backed session against the current private
+authentication configuration. Sessions expire after eight hours; logout revokes
+them. Changing the admin email, password hash, or session secret invalidates
+existing sessions after restart or redeployment. There is no public registration,
+OTP, email service, or external authentication account.
 R2 uploads go into a private staging bucket, are validated by the server, and
 are then promoted to the public asset bucket. Images are converted to WebP and
 served directly from R2; PDFs carry attachment headers.
@@ -264,7 +277,7 @@ content, and batches.
 
 A standard publishing workflow is:
 
-1. Sign in at `/admin/login` with an authorized company account.
+1. Sign in at `/admin/login` with the configured administrator email and password.
 2. Create or edit the relevant record and upload approved assets.
 3. Review titles, dates, URLs, downloadable files, and accessible image alt
    text.
@@ -354,6 +367,7 @@ npm run build
 | Command            | Purpose                                      |
 | ------------------ | -------------------------------------------- |
 | `npm run dev`      | Start the local Turbopack development server |
+| `npm run admin:setup` | Configure private admin credentials and Vercel import files |
 | `npm run lint`     | Run the repository ESLint rules              |
 | `npx tsc --noEmit` | Perform strict TypeScript validation         |
 | `npm run build`    | Create the optimized production build        |
@@ -362,7 +376,7 @@ npm run build
 Run `node --test scripts/ai-gemini.test.mjs` for the Gemini adapter and route
 regression checks, and `node --test scripts/norcet.test.mjs` for the NORCET
 data, AI context, admin collection and section rendering checks; they mock
-Gemini, Tavily, D1, Clerk and R2 and do not consume API quota. Lint,
+Gemini, Tavily, D1, admin authentication, and R2 and do not consume API quota. Lint,
 type-check, build, and focused browser verification remain the release baseline.
 
 ## Deployment
@@ -373,9 +387,12 @@ model because the application loads changing D1 content on the server.
 
 Before a production release:
 
-1. Configure all required environment variables in the build environment.
+1. Configure all required environment variables in Vercel, including the three
+   private admin variables from `.env.vercel.auth`, and redeploy after changes.
 2. Run lint, type-check, and the production build.
-3. Confirm Clerk restrictions, D1 admin membership, Worker authentication, and R2 bucket access.
+3. Apply `0002_admin_auth.sql` through `npm run db:migrate:remote`, redeploy the
+   updated Worker, and verify admin login/logout, Worker authentication, and R2
+   bucket access. Remove old Clerk environment variables when upgrading.
 4. Smoke-test public content, authentication, uploads, both lead forms, and
    WhatsApp/app links.
 5. Verify canonical metadata, `robots.txt`, `sitemap.xml`, and social previews.
@@ -394,7 +411,7 @@ Before a production release:
 - Preserve draft/publish behavior when adding content collections.
 - Update operational documentation whenever analytics events, environment
   variables, routes, or external integrations change.
-- Use company-owned accounts for Cloudflare, Clerk, analytics, forms, domains, and app
+- Use company-owned accounts for Cloudflare, analytics, forms, domains, and app
   store integrations.
 
 ## Ownership

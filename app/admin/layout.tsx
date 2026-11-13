@@ -1,10 +1,9 @@
-import { ClerkProvider } from "@clerk/nextjs";
-import { isClerkConfigured } from "@/lib/auth/config";
+import { isAdminAuthConfigured } from "@/lib/auth/config";
 
 export const dynamic = "force-dynamic";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  if (!isClerkConfigured()) {
+  if (!isAdminAuthConfigured()) {
     return (
       <main className="grid min-h-dvh place-items-center bg-cream px-4">
         <section className="max-w-md rounded-2xl border border-navy/10 bg-white p-8 text-center">
@@ -14,9 +13,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </main>
     );
   }
-  return (
-    <ClerkProvider signInUrl="/admin/login" signInFallbackRedirectUrl="/admin" afterSignOutUrl="/admin/login">
-      {children}
-    </ClerkProvider>
-  );
+  return children;
 }

@@ -27,7 +27,8 @@ function load(relative) {
 const { default: worker, secretMatches, validateStatements } = load("cloudflare/d1-worker/src/index.ts");
 const repository = load("lib/db/repository.ts");
 const { validatePayload, collectionDefinition } = load("lib/db/validation.ts");
-const schema = readFileSync(new URL("../migrations/0001_fresh_content.sql", import.meta.url), "utf8");
+const schema = ["0001_fresh_content.sql", "0002_admin_auth.sql"]
+  .map((name) => readFileSync(new URL(`../migrations/${name}`, import.meta.url), "utf8")).join("\n");
 const SECRET = "test-only-32-character-minimum-shared-secret";
 process.env.D1_GATEWAY_URL = "https://d1.example.test/query";
 process.env.D1_GATEWAY_SECRET = SECRET;
@@ -126,7 +127,7 @@ test("repository binds values and rejects unknown collections, columns and inval
   db.close();
 });
 
-test("CRUD preserves draft boundaries, booleans, tags, projections, settings and membership", async () => {
+test("CRUD preserves draft boundaries, booleans, tags, projections and settings", async () => {
   const { db } = setup();
   const draft = await repository.createCollectionRow("blogs", { title: "A new post", content: "Full article body", tags: ["Study"], published: false });
   assert.equal(draft.slug, "a-new-post");
@@ -141,10 +142,6 @@ test("CRUD preserves draft boundaries, booleans, tags, projections, settings and
   await repository.saveSettings({ email: "hello@example.test" });
   await repository.saveSettings({ phone: "8910840928" });
   assert.deepEqual(await repository.getSettings(), { email: "hello@example.test", phone: "8910840928" });
-  assert.equal(await repository.isAdmin("user_testadmin"), false);
-  db.prepare("INSERT INTO admins (clerk_user_id) VALUES (?)").run("user_testadmin");
-  assert.equal(await repository.isAdmin("user_testadmin"), true);
-  assert.equal(await repository.isAdmin("user_testadmin' OR 1=1"), false);
   assert.equal((await repository.deleteCollectionRow("blogs", draft.id)).id, draft.id);
   assert.equal(await repository.getCollectionRow("blogs", draft.id), null);
   assert.equal(await repository.updateCollectionRow("blogs", draft.id, { published: false }), null);

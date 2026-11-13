@@ -135,7 +135,7 @@ export default async function CurrentAffairsPage() {
                       {m.description}
                     </p>
                     <p className="mt-1 text-xs text-navy/45">
-                      {m.language}
+                      {m.month}{m.language && <> · {m.language}</>}
                       {m.fileSize && <> · {m.fileSize}</>}
                     </p>
                   </div>

@@ -28,7 +28,7 @@ Current architecture:
 - Tailwind CSS 4
 - Framer Motion
 - Cloudflare D1 via a private Worker gateway
-- Clerk for admin authentication
+- Single-admin email/password authentication with private environment credentials and D1-backed sessions
 - Cloudflare R2
 - GA4 through `@next/third-parties/google`
 - 60-second revalidation on most content routes

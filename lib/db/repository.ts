@@ -137,13 +137,7 @@ export async function saveSettings(input: unknown): Promise<Partial<SiteSettings
   return validateSettings(JSON.parse(String(row.data)));
 }
 
-export async function isAdmin(clerkUserId: string): Promise<boolean> {
-  if (typeof clerkUserId !== "string" || !/^user_[A-Za-z0-9]{1,128}$/.test(clerkUserId)) return false;
-  const rows = await d1Query("SELECT clerk_user_id FROM admins WHERE clerk_user_id = ? LIMIT ?", [clerkUserId, 1]);
-  return rows.length === 1;
-}
-
-/** Internal published-only access; admin and membership queries never use a cache. */
+/** Internal published-only access; admin queries never use a cache. */
 export async function listPublishedRows(table: string, options: { limit?: number; offset?: number } = {}): Promise<DbRow[]> {
   const collection = collectionDefinition(table);
   const { limit, offset } = pagination(options.limit ?? 500, options.offset);

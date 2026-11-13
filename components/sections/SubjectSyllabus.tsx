@@ -12,10 +12,9 @@ import {
   FileText,
   type LucideIcon,
 } from "lucide-react";
-import { SUBJECT_SYLLABI, type SubjectSyllabus as SubjectSyllabusItem } from "@/lib/syllabus";
+import type { SubjectSyllabus as SubjectSyllabusItem } from "@/lib/data";
 
-/* Icon per subject — keyed by the id in lib/syllabus.ts so the
-   data file stays plain (serializable) and the visuals live here. */
+/* Icons use the administrator's stable subject ID, not the database UUID. */
 const SUBJECT_ICONS: Record<string, LucideIcon> = {
   biology: Dna,
   "physical-science": FlaskConical,
@@ -26,11 +25,11 @@ const SUBJECT_ICONS: Record<string, LucideIcon> = {
 };
 
 type SubjectSyllabusProps = {
-  subjects?: SubjectSyllabusItem[];
+  subjects: SubjectSyllabusItem[];
 };
 
 export default function SubjectSyllabus({ subjects }: SubjectSyllabusProps) {
-  const items = subjects?.length ? subjects : SUBJECT_SYLLABI;
+  if (!subjects.length) return null;
 
   return (
     <section
@@ -72,8 +71,8 @@ export default function SubjectSyllabus({ subjects }: SubjectSyllabusProps) {
 
         {/* ---------- Subject cards ---------- */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((subject, i) => {
-            const Icon = SUBJECT_ICONS[subject.id] ?? FileText;
+          {subjects.map((subject, i) => {
+            const Icon = SUBJECT_ICONS[subject.sid] ?? FileText;
             return (
               <motion.article
                 key={subject.id}
@@ -101,17 +100,19 @@ export default function SubjectSyllabus({ subjects }: SubjectSyllabusProps) {
 
                 {/* Download */}
 
-                <a
-                  href={subject.fileUrl}
-                  download={subject.fileName}
-                  className="group/dl mt-5 flex items-center justify-center gap-2 rounded-full border border-navy/15 bg-white px-4 py-2.5 text-sm font-semibold text-navy transition-all duration-200 hover:border-navy hover:bg-navy hover:text-white"
-                >
-                  <Download
-                    size={15}
-                    className="transition-transform duration-200 group-hover/dl:translate-y-0.5"
-                  />
-                  Download PDF
-                </a>
+                {subject.fileUrl && (
+                  <a
+                    href={subject.fileUrl}
+                    download={subject.fileName || undefined}
+                    className="group/dl mt-5 flex items-center justify-center gap-2 rounded-full border border-navy/15 bg-white px-4 py-2.5 text-sm font-semibold text-navy transition-all duration-200 hover:border-navy hover:bg-navy hover:text-white"
+                  >
+                    <Download
+                      size={15}
+                      className="transition-transform duration-200 group-hover/dl:translate-y-0.5"
+                    />
+                    Download PDF
+                  </a>
+                )}
               </motion.article>
             );
           })}

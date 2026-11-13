@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Check } from "lucide-react";
 import { adminRequest } from "@/lib/admin/api";
 
@@ -19,6 +19,7 @@ const FIELDS = [
 ] as const;
 
 export default function SettingsPage() {
+  const savePending = useRef(false);
   const [data, setData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,13 +30,15 @@ export default function SettingsPage() {
   useEffect(() => {
     const controller = new AbortController();
     adminRequest<{ data: Record<string, string> }>("/settings", { signal: controller.signal })
-      .then((result) => { setData(result.data); setLoaded(true); })
+      .then((result) => { if (!controller.signal.aborted) { setData(result.data); setLoaded(true); } })
       .catch((error) => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not load settings."); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, []);
 
   const save = async () => {
+    if (savePending.current || !loaded) return;
+    savePending.current = true;
     setSaving(true);
     setSaved(false);
     setError("");
@@ -44,7 +47,7 @@ export default function SettingsPage() {
       setSaved(true);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Could not save settings.");
-    } finally { setSaving(false); }
+    } finally { savePending.current = false; setSaving(false); }
   };
 
   if (loading)
@@ -66,10 +69,12 @@ export default function SettingsPage() {
       <div className="mt-6 space-y-5 rounded-2xl border border-navy/10 bg-white p-4 shadow-sm sm:p-6">
         {FIELDS.map((f) => (
           <div key={f.key}>
-            <label className="text-xs font-semibold uppercase tracking-wide text-navy/60">
+            <label htmlFor={`setting-${f.key}`} className="text-xs font-semibold uppercase tracking-wide text-navy/60">
               {f.label}
             </label>
             <input
+              id={`setting-${f.key}`}
+              disabled={saving || !loaded}
               value={data[f.key] ?? ""}
               onChange={(e) => {
                 setSaved(false);
