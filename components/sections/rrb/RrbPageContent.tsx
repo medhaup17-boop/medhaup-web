@@ -234,8 +234,7 @@ export default function RrbPageContent() {
             </h2>
             <p className="mt-4 max-w-2xl leading-7 text-navy/65">
               The nursing subjects below follow Annexure C of {RRB_REFERENCE},
-              grouped to help you plan revision. Individual nursing subjects do
-              not have an official mark allocation.
+              grouped to help you plan revision.
             </p>
             <a
               href={`${RRB_SOURCES.bulletin}#page=30`}
@@ -389,7 +388,7 @@ export default function RrbPageContent() {
             rel="noopener noreferrer"
             className={`${sourceClass} mt-7 text-white/80`}
           >
-            Verify the recruitment process in Section 13{" "}
+            Recruitment process in Section 13{" "}
             <ArrowUpRight size={16} aria-hidden="true" />
           </a>
         </div>
@@ -408,9 +407,7 @@ export default function RrbPageContent() {
             Official references.
           </h2>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-navy/65">
-            This guide uses {RRB_REFERENCE}. Check the notice for your
-            recruitment cycle for applicable eligibility, dates and any revised
-            rules. medhaup is an independent preparation platform.
+            Exam resources from {RRB_REFERENCE}.
           </p>
           <div className="mt-6 flex flex-wrap gap-6">
             <a

@@ -131,7 +131,7 @@ export const RRB_FAQS = [
   {
     question: "What happens after the CBT?",
     answer:
-      "Selection under CEN 03/2025 depends on CBT merit, document verification and the prescribed medical examination. Consult the official RRB notices for your recruitment cycle's eligibility, dates and requirements. medhaup course enrolment is separate from applying to RRB.",
+      "Selection under CEN 03/2025 depends on CBT merit, document verification and the prescribed medical examination.",
   },
 ] as const;
 

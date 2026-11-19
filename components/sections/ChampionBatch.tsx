@@ -43,9 +43,6 @@ const TERMS = [
     text: "The total discounted course fee is ₹1,350. Students enrolling with ₹450 must pay the remaining ₹900 according to the applicable payment schedule.",
   },
   {
-    text: "Students are advised to review the course details, features, fee structure and terms before making any payment.",
-  },
-  {
     text: "Course access will remain available until the ANM/GNM 2027 entrance examination, subject to the platform’s access policy.",
   },
 ];

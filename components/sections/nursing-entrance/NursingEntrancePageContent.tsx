@@ -214,8 +214,7 @@ export default function NursingEntrancePageContent({
             WBJEEB {course.name} {course.referenceYear} bulletin
             <span className="sr-only"> (PDF, opens in a new tab)</span>
           </a>
-          . Check the bulletin for your examination year for applicable rules
-          and dates.
+          .
         </p>
       </div>
 
@@ -384,9 +383,7 @@ export default function NursingEntrancePageContent({
               Check your route into {course.degree}.
             </h2>
             <p className="mt-4 leading-7 text-navy/65">
-              This overview follows the {course.referenceYear} bulletin. Read
-              the full criteria and current notices for your qualification,
-              employment category and intended institution.
+              This overview follows the {course.referenceYear} bulletin.
             </p>
           </motion.div>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -472,7 +469,7 @@ export default function NursingEntrancePageContent({
             rel="noopener noreferrer"
             className={`${sourceLinkClass} mt-4`}
           >
-            Verify the full experience and service rules
+            Experience and service rules
             <ArrowUpRight size={14} aria-hidden="true" />
             <span className="sr-only"> (PDF, opens in a new tab)</span>
           </a>
@@ -483,9 +480,6 @@ export default function NursingEntrancePageContent({
             <p className="mt-3 text-sm leading-7 text-navy/70">
               Apply for the exam through WBJEEB, appear for the test, then
               follow the notified counselling and document-verification process.
-              A rank does not guarantee a seat. medhaup enrolment details are for
-              the preparation course; they are separate from examination
-              applications and college admission.
             </p>
           </div>
         </div>

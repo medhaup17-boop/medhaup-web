@@ -205,7 +205,7 @@ export default function NorcetEnrollment() {
                 Enrol in NORCET
               </h3>
               <p className="text-sm text-navy/60">
-                Ask about the course. No payment is collected by this form.
+                Ask about the course.
               </p>
 
               <input

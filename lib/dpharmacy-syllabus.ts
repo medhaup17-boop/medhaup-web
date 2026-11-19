@@ -301,7 +301,7 @@ export const DPHARMACY_CURRICULUM: DPharmacyYear[] = [
           "Biomedical waste, consumer protection, disaster management and medical devices",
         ],
         practicals: [],
-        note: "This subject has no practical paper. The topics summarise the ER-2020 syllabus; study applicable amendments alongside your examining authority’s guidance.",
+        note: "This subject has no practical paper.",
       },
     ],
   },

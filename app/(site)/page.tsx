@@ -219,7 +219,7 @@ const FAQS = [
   {
     question: "Is medhaup preparing students for ANM GNM 2027?",
     answer:
-      "Yes. medhaup's current preparation program is designed for students targeting the 2027 ANM and GNM entrance examination cycle. Candidates should always verify official examination dates, eligibility and notifications directly from WBJEEB when the official 2027 bulletin is published.",
+      "Yes. medhaup's current preparation program is designed for students targeting the 2027 ANM and GNM entrance examination cycle.",
   },
   {
     question: "Are medhaup classes available in Bengali and English?",

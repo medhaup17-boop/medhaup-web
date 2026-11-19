@@ -169,11 +169,6 @@ export default function GnmExamPattern() {
             </table>
           </div>
         </motion.div>
-        <p className="mt-3 text-xs leading-6 text-navy/60">
-          This marks sheet covers the four theory papers above and one
-          practical. English and Computer Education are in the syllabus, but
-          this sheet does not assign them separate marks.
-        </p>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2">
           <motion.div

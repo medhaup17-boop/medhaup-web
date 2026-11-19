@@ -253,9 +253,6 @@ export default function AIPanel({
               )}
             </motion.button>
           </div>
-          <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">
-            Verify important exam updates with official notices.
-          </p>
         </form>
       </motion.section>
     </motion.div>

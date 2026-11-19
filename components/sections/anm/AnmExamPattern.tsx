@@ -220,8 +220,7 @@ export default function AnmExamPattern() {
             syllabus examination rules
             <span className="sr-only"> (PDF, opens in a new tab)</span>
           </a>
-          . Check your nursing institution or examination board for the
-          applicable timetable and notices.
+          .
         </p>
       </div>
     </section>

@@ -84,8 +84,6 @@ export default function JenpasAdmissionGuide() {
           </h2>
           <p className="mt-4 leading-7 text-navy/65">
             This overview follows the {JENPAS_REFERENCE_YEAR} bulletin.
-            Admission criteria depend on your course and institution, so read
-            the full requirements for your examination year before applying.
           </p>
         </motion.div>
         <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -149,12 +147,6 @@ export default function JenpasAdmissionGuide() {
               </li>
             ))}
           </ol>
-          <p className="mt-6 border-t border-white/15 pt-4 text-xs leading-6 text-white/60">
-            A rank alone does not guarantee a seat. Admission depends on
-            eligibility, choices, seat availability and document verification.
-            medhaup enrolment details concern the preparation course; examination
-            applications are handled by WBJEEB.
-          </p>
         </motion.div>
         <div
           id="resources"

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Hospital, BadgeIndianRupee, MapPin, Repeat, Info } from "lucide-react";
+import { Hospital, BadgeIndianRupee, MapPin, Repeat } from "lucide-react";
 import { NORCET, NORCET_STAKES } from "@/lib/norcet";
 
 const ICONS = [Hospital, BadgeIndianRupee, MapPin, Repeat];
@@ -67,20 +67,14 @@ export default function NorcetStakes() {
           transition={{ delay: 0.3 }}
           className="mx-auto mt-8 flex max-w-2xl items-start justify-center gap-2 text-center text-xs text-navy/50"
         >
-          <Info size={14} className="mt-0.5 shrink-0" />
-          <span>
-            Vacancies and participating institutes change with every notice.
-            Verify the current cycle on the{" "}
-            <a
-              href={NORCET.officialUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-teal-dark underline decoration-teal/40 underline-offset-2 hover:text-teal"
-            >
-              official AIIMS exams website
-            </a>
-            .
-          </span>
+          <a
+            href={NORCET.officialUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-teal-dark underline decoration-teal/40 underline-offset-2 hover:text-teal"
+          >
+            Official AIIMS exams website
+          </a>
         </motion.p>
       </div>
     </section>

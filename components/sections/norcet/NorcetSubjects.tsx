@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Info } from "lucide-react";
 import clsx from "clsx";
 import {
   NORCET_GENERAL_QUESTION_SHARE,
@@ -206,20 +205,6 @@ export default function NorcetSubjects() {
           </motion.article>
         )}
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.3 }}
-          className="mx-auto mt-8 flex max-w-2xl items-start justify-center gap-2 text-center text-xs text-navy/50"
-        >
-          <Info size={14} className="mt-0.5 shrink-0" />
-          <span>
-            AIIMS does not publish subject-wise weightage. These ranges are
-            medhaup&apos;s approximation from recent NORCET papers and shift
-            slightly between cycles.
-          </span>
-        </motion.p>
       </div>
     </section>
   );

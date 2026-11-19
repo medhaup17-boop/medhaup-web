@@ -260,7 +260,7 @@ export const JENPAS_FAQS = [
   {
     question: "Which examination year does this guide follow?",
     answer:
-      "The exam structure and syllabus references on this page follow WBJEEB’s JENPAS(UG) 2026 information bulletin and Health Aptitude notice. These are reference materials for preparation; check WBJEEB’s bulletin for your examination year for the applicable dates, syllabus and eligibility.",
+      "The exam structure and syllabus references on this page follow WBJEEB’s JENPAS(UG) 2026 information bulletin and Health Aptitude notice.",
   },
   {
     question: "Is this the same as the ANM/GNM entrance course?",

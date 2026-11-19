@@ -50,11 +50,6 @@ export default function NursingEntranceSyllabus({
             syllabus. Explore the official subject groups below, with suggested
             revision areas to help organise your study.
           </p>
-          <p className="mt-3 text-sm leading-7 text-navy/60">
-            WBJEEB specifies totals for each part, without fixed question counts
-            per subject. The revision topics are study suggestions; use your
-            nursing curriculum for full chapter coverage.
-          </p>
           <a
             href={`${course.sources.bulletin}#page=${course.sources.syllabusPage}`}
             target="_blank"

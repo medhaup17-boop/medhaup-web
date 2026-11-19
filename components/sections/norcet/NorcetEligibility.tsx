@@ -83,7 +83,7 @@ export default function NorcetEligibility() {
               rel="noopener noreferrer"
               className="mt-6 inline-flex items-center gap-1.5 text-xs font-semibold text-navy/60 transition-colors hover:text-teal-dark"
             >
-              Confirm the exact conditions in the current AIIMS notice
+              AIIMS eligibility information
               <ExternalLink size={12} />
             </a>
           </motion.div>

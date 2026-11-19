@@ -37,7 +37,6 @@ function SubjectDetails({
           </span>
           <span className="mt-1 block text-xs leading-5 text-navy/60">
             {subject.hours}
-            {subject.note ? " · Source note below" : ""}
           </span>
         </span>
         <ChevronDown
@@ -61,12 +60,6 @@ function SubjectDetails({
             </li>
           ))}
         </ul>
-        {subject.note && (
-          <p className="mt-5 rounded-xl border border-orange/20 bg-orange/5 px-4 py-3 text-xs leading-6 text-navy/70">
-            <span className="font-semibold text-navy">Source note: </span>
-            {subject.note}
-          </p>
-        )}
       </div>
     </details>
   );
@@ -114,9 +107,6 @@ export default function GnmSyllabus() {
             Choose your year and open a subject to explore the topic headings.
             Download the full medhaup PDFs for learning objectives, detailed
             content and clinical activities.
-          </p>
-          <p className="mt-3 text-xs leading-6 text-navy/60">
-            Hours refer to the academic syllabus. contact our team for medhaup batch timings.
           </p>
         </motion.div>
 

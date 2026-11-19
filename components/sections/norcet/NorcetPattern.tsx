@@ -357,7 +357,7 @@ export default function NorcetPattern() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-navy/60 transition-colors hover:text-teal-dark"
             >
-              Pattern follows recent AIIMS notices. Verify the current cycle
+              AIIMS exam information
               <ExternalLink size={12} />
             </a>
           </div>

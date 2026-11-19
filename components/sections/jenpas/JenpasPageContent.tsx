@@ -208,8 +208,7 @@ export default function JenpasPageContent() {
                 WBJEEB JENPAS(UG) {JENPAS_REFERENCE_YEAR} bulletin
                 <span className="sr-only"> (PDF, opens in a new tab)</span>
               </a>
-              . Check the bulletin for your examination year for applicable
-              rules and dates.
+              .
             </p>
           </motion.div>
           <div className="mt-9 grid items-start gap-5 md:grid-cols-2">
@@ -263,11 +262,6 @@ export default function JenpasPageContent() {
                       <li key={course}>{course}</li>
                     ))}
                   </ul>
-                  <p className="mt-4 text-xs leading-6 text-navy/60">
-                    Courses listed in the {JENPAS_REFERENCE_YEAR} bulletin;
-                    admission depends on course eligibility and the counselling
-                    seat matrix.
-                  </p>
                 </details>
               </motion.article>
             ))}

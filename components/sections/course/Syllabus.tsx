@@ -8,7 +8,6 @@ import {
   SpellCheck,
   Globe2,
   Puzzle,
-  Info,
 } from "lucide-react";
 
 /* ----------------------------------------------------------------
@@ -157,21 +156,6 @@ export default function Syllabus() {
           ))}
         </div>
 
-        {/* Approximation note */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4 }}
-          className="mx-auto mt-8 flex max-w-xl items-start justify-center gap-2 text-center text-xs text-navy/50"
-        >
-          <Info size={14} className="mt-0.5 shrink-0" />
-          <span>
-            Question distribution is approximate, based on recent exam patterns.
-            Refer to the official WBJEEB bulletin for the current year&apos;s
-            exact structure.
-          </span>
-        </motion.p>
       </div>
     </section>
   );

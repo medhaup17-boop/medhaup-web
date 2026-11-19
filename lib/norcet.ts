@@ -522,7 +522,7 @@ export const NORCET_FAQS = [
   {
     question: "Who is eligible for NORCET?",
     answer:
-      "Candidates with B.Sc (Hons.) Nursing, B.Sc Nursing, or Post-Basic B.Sc Nursing from an INC-recognised institution, or a GNM diploma with two years of experience in a hospital of at least 50 beds. Registration as a Nurse and Midwife with a State or the Indian Nursing Council is required, and the age limit is 18 to 30 years with relaxations as per rules. Always confirm the exact conditions in the current AIIMS notice.",
+      "Candidates with B.Sc (Hons.) Nursing, B.Sc Nursing, or Post-Basic B.Sc Nursing from an INC-recognised institution, or a GNM diploma with two years of experience in a hospital of at least 50 beds. Registration as a Nurse and Midwife with a State or the Indian Nursing Council is required, and the age limit is 18 to 30 years with relaxations as per rules.",
   },
   {
     question: "What is the NORCET exam pattern?",
@@ -553,11 +553,6 @@ export const NORCET_FAQS = [
     question: "How can I enrol in medhaup's NORCET course?",
     answer:
       "Send an enquiry using the form on this page or contact us on WhatsApp for current fees, batch dates, class timings and enrolment steps.",
-  },
-  {
-    question: "Is medhaup connected to AIIMS?",
-    answer:
-      "No. medhaup is an independent preparation platform. It is not AIIMS and does not publish official notices, applications, admit cards or results. Exam dates, vacancies, eligibility and rules must be verified from the official AIIMS exams website.",
   },
 ] as const;
 

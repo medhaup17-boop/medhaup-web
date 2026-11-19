@@ -13,7 +13,6 @@ import {
   AlertCircle,
   Loader2,
   Send,
-  ShieldCheck,
   Download,
   UserRound,
   PhoneCall,
@@ -47,11 +46,11 @@ const FORM_STEPS = [
 const FAQS = [
   {
     q: "When do I pay?",
-    a: "If you use the app, you pay securely inside the app when you enrol. If you request admission guidance, we'll explain the process before you pay. Submitting this form does not make a payment or confirm admission.",
+    a: "If you use the app, you pay securely inside the app when you enrol. If you request admission guidance, we'll explain the process before you pay.",
   },
   {
     q: "Can I join with an initial payment?",
-    a: `Yes. The Diwali offer fee for ${CHAMPION_BATCH.name} is ${formatINR(CHAMPION_BATCH.offerPrice)}, reduced from ${formatINR(CHAMPION_BATCH.regularPrice)}. Join with ${formatINR(CHAMPION_BATCH.joiningAmount)} and pay the remaining ${formatINR(CHAMPION_BATCH.remainingAmount)} according to the applicable payment schedule. Ask our team to explain the schedule before paying.`,
+    a: `Yes. The Diwali offer fee for ${CHAMPION_BATCH.name} is ${formatINR(CHAMPION_BATCH.offerPrice)}, reduced from ${formatINR(CHAMPION_BATCH.regularPrice)}. Join with ${formatINR(CHAMPION_BATCH.joiningAmount)} and pay the remaining ${formatINR(CHAMPION_BATCH.remainingAmount)} according to the applicable payment schedule.`,
   },
   {
     q: "What if the batch fills up?",
@@ -337,8 +336,7 @@ export default function AdmissionPageContent({
                 </p>
                 <p className="mt-2 text-xs leading-5 text-navy/65">
                   Fees, including the joining amount, are non-refundable except
-                  where required by applicable law. Review the course details,
-                  fee structure and terms before paying.
+                  where required by applicable law.
                 </p>
               </div>
 
@@ -458,11 +456,6 @@ export default function AdmissionPageContent({
                     )}
                   </button>
 
-                  <p className="text-xs leading-5 text-navy/60">
-                    This form requests guidance only. No payment is collected
-                    and your admission is not confirmed by submitting it.
-                  </p>
-
                   {/* Admission guidance steps */}
                   <ol className="space-y-2 pt-2">
                     {FORM_STEPS.map((s, i) => (
@@ -490,10 +483,6 @@ export default function AdmissionPageContent({
             transition={{ delay: 0.3 }}
             className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center text-xs text-navy/50"
           >
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck size={14} className="text-orange" />
-              No payment on this website
-            </span>
             <span className="flex items-center gap-1.5">
               <UserRound size={14} className="text-orange" />
               Talk to Arushi directly, not a sales team

@@ -47,8 +47,7 @@ export default function JenpasSyllabus() {
           <p className="mt-4 leading-7 text-navy/65">
             Explore each paper&apos;s subjects and syllabus level. WBJEEB
             specifies the school curriculum levels; the revision suggestions
-            below help organise your study. Use your recognised board&apos;s
-            syllabus for full chapter coverage.
+            below help organise your study.
           </p>
         </motion.div>
         <motion.div

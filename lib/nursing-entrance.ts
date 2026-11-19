@@ -199,7 +199,7 @@ const ENROLMENT_FAQ = {
 const REFERENCE_FAQ = {
   question: "Which examination year does this guide follow?",
   answer:
-    "The linked WBJEEB 2026 bulletin is the reference for this guide. Check the official bulletin and notices for your examination year before applying. Course enrolment is separate from the entrance examination schedule.",
+    "The linked WBJEEB 2026 bulletin is the reference for this guide.",
 };
 
 export const JEPBN_COURSE: NursingEntranceCourse = {
@@ -287,7 +287,7 @@ export const JEPBN_COURSE: NursingEntranceCourse = {
     {
       question: "What will this preparation course help me work towards?",
       answer:
-        "The medhaup course is for JEPBN aspirants targeting Post Basic B.Sc. Nursing admission in West Bengal. It is entrance preparation; the degree is offered by the admitting nursing institution.",
+        "The medhaup course is for JEPBN aspirants targeting Post Basic B.Sc. Nursing admission in West Bengal.",
     },
     {
       question: "What should I revise for JEPBN?",
@@ -297,7 +297,7 @@ export const JEPBN_COURSE: NursingEntranceCourse = {
     {
       question: "Can I request updates while I am studying GNM?",
       answer:
-        "Yes. You can ask about the preparation course while studying. A course enquiry does not confirm eligibility for the entrance examination or admission; read the qualification and registration requirements before applying.",
+        "Yes. You can ask about the preparation course while studying.",
     },
     {
       question: "Is JEPBN the same as JENPAS(UG)?",
@@ -396,7 +396,7 @@ export const JEMSCN_COURSE: NursingEntranceCourse = {
   ],
   experiencePage: 9,
   experienceNote:
-    "All experience periods must be completed by the application deadline. Verify the category and qualification route that apply to you.",
+    "All experience periods must be completed by the application deadline.",
   interestOptions: [
     { id: "bsc-nursing", label: "B.Sc. / B.Sc. (Hons.) Nursing" },
     { id: "post-basic-nursing", label: "Post Basic B.Sc. Nursing" },
@@ -406,7 +406,7 @@ export const JEMSCN_COURSE: NursingEntranceCourse = {
     {
       question: "Who is the JEMScN course for?",
       answer:
-        "It is for nursing graduates preparing for WBJEEB's M.Sc. Nursing entrance examination. medhaup offers entrance preparation; admission and the degree remain with the respective institutions.",
+        "It is for nursing graduates preparing for WBJEEB's M.Sc. Nursing entrance examination.",
     },
     {
       question: "How does the syllabus differ from JEPBN?",
@@ -421,7 +421,7 @@ export const JEMSCN_COURSE: NursingEntranceCourse = {
     {
       question: "How should I check my work experience?",
       answer:
-        "Use the experience table for your employment category and qualification route, and read the linked bulletin section. Keep supporting documents ready; a request for medhaup course updates is not an eligibility assessment.",
+        "Use the experience table for your employment category and qualification route, and read the linked bulletin section. Keep supporting documents ready.",
     },
     ENROLMENT_FAQ,
     REFERENCE_FAQ,

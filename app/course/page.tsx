@@ -24,12 +24,12 @@ const FAQS = [
   {
     question: "Is this course specifically for the WBJEEB ANM(R) & GNM exam?",
     answer:
-      "Yes. The preparation is focused on the subjects and question-solving skills needed for the WBJEEB ANM(R) & GNM Common Entrance Test in West Bengal. Students should still use the latest official WBJEEB information bulletin as the final authority for the current year's rules and exam pattern.",
+      "Yes. The preparation is focused on the subjects and question-solving skills needed for the WBJEEB ANM(R) & GNM Common Entrance Test in West Bengal.",
   },
   {
     question: "Which subjects are covered in the ANM GNM course?",
     answer:
-      "The course covers Life Science, Physical Science, Mathematics, Basic English, General Knowledge and Logical Reasoning. Topic weightage and the exact examination structure can change, so medhaup recommends checking the latest official WBJEEB bulletin as well.",
+      "The course covers Life Science, Physical Science, Mathematics, Basic English, General Knowledge and Logical Reasoning.",
   },
   {
     question: "Are classes available in Bengali and English?",
@@ -49,18 +49,13 @@ const FAQS = [
   {
     question: "What is the duration and fee of the medhaup ANM GNM course?",
     answer:
-      "The course duration is 12 months. The listed full-course fee is ₹1,800 for new students and ₹1,500 for returning medhaup students, with EMI availability shown on the course page. Check the admission page for the current payable amount before enrolling.",
-  },
-  {
-    question: "Is medhaup an official WBJEEB website?",
-    answer:
-      "No. medhaup is an independent education and exam-preparation platform. It is not the West Bengal Joint Entrance Examinations Board and does not replace official WBJEEB notices, bulletins, applications or counselling information.",
+      "The course duration is 12 months. The listed full-course fee is ₹1,800 for new students and ₹1,500 for returning medhaup students, with EMI availability shown on the course page.",
   },
   {
     question:
       "Where should I check official ANM GNM 2027 dates and eligibility?",
     answer:
-      "Use the official WBJEEB ANM & GNM website and the information bulletin published for the relevant examination year. Official dates, eligibility rules, application instructions, exam pattern and counselling requirements can change from one cycle to another.",
+      "Exam dates and eligibility are published on the official WBJEEB ANM & GNM website and in its information bulletin for the examination year.",
   },
 ] as const;
 
@@ -390,28 +385,6 @@ function CourseSeoContent() {
           </article>
         </div>
 
-        <div className="mt-12 rounded-3xl border border-orange/25 bg-orange/5 p-6 sm:p-8">
-          <h3 className="font-heading text-xl font-bold text-navy">
-            Official ANM(R) &amp; GNM exam information
-          </h3>
-
-          <p className="mt-3 max-w-4xl text-sm leading-7 text-navy/70">
-            medhaup is an independent preparation platform, not WBJEEB. Exam
-            dates, eligibility, application rules, paper structure and
-            counselling requirements can change by year. For official notices
-            and the information bulletin, always check the{" "}
-            <a
-              href={OFFICIAL_EXAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-orange-dark underline decoration-orange/35 underline-offset-4 transition-colors hover:text-orange"
-            >
-              official WBJEEB ANM &amp; GNM page
-            </a>
-            .
-          </p>
-        </div>
-
         <div className="mt-16">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-widest text-orange-dark">
@@ -426,6 +399,14 @@ function CourseSeoContent() {
               Use these pages with the course to build a stronger revision and
               question-practice routine.
             </p>
+            <a
+              href={OFFICIAL_EXAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex text-sm font-semibold text-orange-dark underline decoration-orange/35 underline-offset-4 transition-colors hover:text-orange"
+            >
+              WBJEEB ANM &amp; GNM exam information →
+            </a>
           </div>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -477,7 +458,7 @@ function CourseFaq() {
 
           <p className="mx-auto mt-3 max-w-2xl text-navy/60">
             Quick answers about the MedhaUp course, included study support and
-            where to verify official examination information.
+            examination information.
           </p>
         </div>
 

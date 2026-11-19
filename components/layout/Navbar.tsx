@@ -121,8 +121,7 @@ export default function Navbar() {
   };
 
   return (
-    // The zero-height sticky header follows the notice in normal flow while
-    // preserving the space already reserved for navigation by each page hero.
+    // Each page hero reserves space for this zero-height sticky header.
     <header className="sticky top-0 z-50 h-0 px-3 sm:px-4">
       <nav
         aria-label="Main navigation"

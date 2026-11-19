@@ -126,8 +126,7 @@ export default function SubjectSyllabus({ subjects }: SubjectSyllabusProps) {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-8 text-center text-sm text-navy/50"
         >
-          All PDFs are free — no sign-up needed. Question counts are
-          approximate; verify with the official WBJEEB bulletin.
+          All PDFs are free — no sign-up needed.
         </motion.p>
       </div>
     </section>

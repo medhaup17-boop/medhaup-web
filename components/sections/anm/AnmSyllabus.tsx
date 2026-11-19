@@ -248,9 +248,12 @@ export default function AnmSyllabus() {
               </aside>
             </div>
             <p className="mt-5 text-xs leading-6 text-navy/60">
-              {year.yearId === "1st"
-                ? "Hour figures follow the individual course rows in INC’s amendment. Its printed first-year totals contain inconsistencies; confirm the timetable with your institution."
-                : "The hours above cover the first six months of 2nd year: 880 hours of study and clinical experience. The following internship adds 880 hours."}{" "}
+              {year.yearId === "2nd" && (
+                <>
+                  The first six months of 2nd year include 880 hours of study
+                  and clinical experience, followed by an 880-hour internship.{" "}
+                </>
+              )}
               <a
                 href={`${ANM_SOURCES.amendments}#page=${year.yearId === "1st" ? 2 : 3}`}
                 target="_blank"

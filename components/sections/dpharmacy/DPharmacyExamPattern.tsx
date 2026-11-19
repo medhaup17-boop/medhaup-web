@@ -305,8 +305,7 @@ export default function DPharmacyExamPattern() {
             <ArrowUpRight size={12} aria-hidden="true" />
             <span className="sr-only"> (PDF, opens in a new tab)</span>
           </a>
-          . Follow your institution&apos;s exam notices for dates and
-          instructions.
+          .
         </p>
       </div>
     </section>
